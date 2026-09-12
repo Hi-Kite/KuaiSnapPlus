@@ -360,7 +360,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="com.kuaiduizuoye.scan · v6.77.0"
+                android:text="com.kuaiduizuoye.scan · v6.77.0 / v7.7.0"
                 android:textColor="#546E7A"
                 android:textSize="14sp"
                 android:paddingTop="8dp"/>

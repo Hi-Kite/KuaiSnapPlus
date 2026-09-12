@@ -83,7 +83,7 @@
 
 <img src="https://raw.githubusercontent.com/JiGuroLGC/KuaiSnap/main/img/kuaidui.png" width = "70" height = "70" alt="LOGO"/>
 
-**快对**  *支持V6.77.0版本*  
+**快对**  *支持V6.77.0 / V7.7.0版本*  
 包名： **com.kuaiduizuoye.scan**
 
 功能：
@@ -104,6 +104,22 @@
 <a href="https://github.com/JiGuroLGC/KuaiSnap">
     <img src="https://raw.githubusercontent.com/JiGuroLGC/KuaiSnap/main/img/settings3.png">
   </a>
+
+## 框架与兼容性
+
+本模块基于 **经典 XposedBridge API（legacy API 82）** 开发，即 `de.robv.android.xposed` 包，入口为 `assets/xposed_init`。
+
+| 项目 | 本模块 |
+|---|---|
+| API 体系 | 经典 XposedBridge（`de.robv.android.xposed`） |
+| API 版本 | **82**（该体系的最终版本） |
+| 入口方式 | `assets/xposed_init` |
+| 模块元数据 | `AndroidManifest.xml` 中的 `xposedmodule` / `xposeddescription` / `xposedscope` / `xposedminversion` |
+| 最低框架 API | 54 |
+
+**兼容的框架**：LSPosed、EdXposed、经典 Xposed、LSPatch（凡支持经典 API 的框架均可加载）。
+
+**关于 LSPosed 的现代 API**：LSPosed 现已推出第二代 API —— **libxposed API**（`io.github.libxposed.api`，当前版本 **102**）。它与经典 API 是两套并行的体系，本模块目前**未使用**该 API。LSPosed 2.x 仍然兼容基于经典 API 的模块，因此本模块可正常运行；若日后框架移除经典 API 兼容层，本模块需要迁移，迁移方案见 [`docs/libxposed-api102-migration.md`](docs/libxposed-api102-migration.md)。
 
 ## 开始使用
 
@@ -152,29 +168,13 @@ A : 因为 **快怼** 才刚刚开始开发，我们由于工作的原因，我�
 3. Q : 为什么 **快怼** 在 **快对** 版本更新后，Hook 功能会失效？  
 A : 因为 **快对** 对方法和类进行了一定强度的混淆，在版本更新后，关键 Hook 点的类名和方法名都会改变，我们无法保证更新的软件仍适配于原先的 Hook 方法。请时常打开模块主页接收更新、查看 **LSPosed** 的更新页面或关注[发行渠道](#release)中的渠道更新。   
     
-4. Q : 在更新或逆向修改 **快怼** 后，为什么会提示“安全检测异常”的弹窗？且在打开应用域软件时，提示"模块不合法"？  
-A : 您触发了 **快怼** 的完整性校验。为了防止不法分子二改软件，我们设置了低强度的完整性校验，包括签名校验和其他校验。如果您触发了完整性校验，那么您应意识到您极大可能下载的是盗版软件。由于某些未知问题，如果在更新时触发，那么您只需清空软件的所有存储，再次打开软件尝试即可。
-在新版本中，我们引入了"安全修复"模式。您只需授予模块 Root 或文件读取权限，并在主页的菜单中找到"安全修复"选项，点击即可解除限制。
-
-<div align="center">
-<a href="https://github.com/JiGuroLGC/KuaiSnap">
-    <img src="https://raw.githubusercontent.com/JiGuroLGC/KuaiSnap/main/img/caidan.png">
-  </a>
-  </div>
-  
-<div align="center">
-<a href="https://github.com/JiGuroLGC/KuaiSnap">
-    <img src="https://raw.githubusercontent.com/JiGuroLGC/KuaiSnap/main/img/fix.png">
-  </a>
-  </div>
-
-5. Q : 为何在用一些免 Root 框架时， **快对** 功能可能失效甚至闪退？  
+4. Q : 为何在用一些免 Root 框架时， **快对** 功能可能失效甚至闪退？  
 A : 该模块理论上支持免 Root 框架，但是在某些机型上，免 Root 框架的修改补丁可能会和 **快对** 或模块的运行环境冲突，导致闪退或失效。遇到这种情况，您可以更换修补方法或框架。
 
-6. Q : 为什么在 **快对** 的设置对话框中，或在模块本身的设置页面中，保存设置后仍未生效？  
+5. Q : 为什么在 **快对** 的设置对话框中，或在模块本身的设置页面中，保存设置后仍未生效？  
 A : 您需要检查您是否给予了 **快怼** 和 **快对** 需要的权限，比如 **Root 权限** 、 **文件读写权限** 等。因为设置需要存储在公共目录或私有目录，以便软件进行读取。
 
-7. Q : 我是特殊区域用户，访问有问题怎么办 ？  
+6. Q : 我是特殊区域用户，访问有问题怎么办 ？  
 A  : 没关系，我们为您准备了备用的下载链接，我们保证备用链接下载的软件和发行版是完全一样的，而且我们在 Gitee 等开源社区也有我们的仓库。您可以前往[发行渠道](#release)，移步到其他渠道下载 。
 
 ## 免责声明

@@ -21,13 +21,6 @@ public class SettingsActivity extends Activity {
 	private static final String KEY_AGREED = "user_agreed";
 	private static final String SP_NAME = "module_sp";
 
-	private static final Set<String> WHITELIST_DIRS = new HashSet<>(Arrays.asList("code_cache", "cache"));
-
-	// 预设的包名和版本号
-	private static final String EXPECTED_PACKAGE_NAME = "com.jiguro.kuaisnap";
-	private static final int EXPECTED_VERSION_CODE = 20251006;
-	private static final String EXPECTED_VERSION_NAME = "1.2.0";
-
 	private Switch switchUpdate;
 	private Switch switchHideIcon;
 	private Switch switchSuppressToast;
@@ -37,8 +30,6 @@ public class SettingsActivity extends Activity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-
-	    // 此处省略部分代码...
 
 		// 沉浸式状态栏
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -221,19 +212,6 @@ public class SettingsActivity extends Activity {
 		}
 	}
 
-	private void showTamperedAppDialogWithPermissionCheck() {
-		TamperResponseHelper.handleTamper(this, new TamperResponseHelper.TamperResponseCallback() {
-			@Override
-			public void onComplete(boolean success) {
-				if (success) {
-					showTamperedAppDialog();
-				} else {
-					finish();
-				}
-			}
-		});
-	}
-
 	@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -246,21 +224,6 @@ public class SettingsActivity extends Activity {
 				Toast.makeText(this, "权限被拒绝，无法保存设置", Toast.LENGTH_SHORT).show();
 				switchSuppressToast.setChecked(false);
 			}
-		} else if (requestCode == 1001) {
-			// 处理 TamperResponseHelper 的权限请求
-			TamperResponseHelper.onRequestPermissionsResult(this, requestCode, permissions, grantResults,
-					new TamperResponseHelper.TamperResponseCallback() {
-						@Override
-						public void onComplete(boolean success) {
-							if (success) {
-								// 权限获取成功，重新执行检测或弹出对话框
-								showTamperedAppDialog();
-							} else {
-								// 权限被拒绝，退出
-								finish();
-							}
-						}
-					});
 		}
 	}
 
@@ -324,39 +287,6 @@ public class SettingsActivity extends Activity {
 			if (publicFile.exists())
 				publicFile.delete();
 		}
-	}
-
-   // 此处省略部分代码...
-
-	private void showTamperedAppDialog() {
-		runOnUiThread(new Runnable() {
-			@Override
-			public void run() {
-				final AlertDialog dialog = new AlertDialog.Builder(SettingsActivity.this).setTitle("安全检测异常")
-						.setMessage("检测到应用修改痕迹或存在安全风险！\n为了您的系统安全，程序将会自动退出。\n请下载正版软件或清空存储重试。").setCancelable(false)
-						.setPositiveButton("确定", new DialogInterface.OnClickListener() {
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								finish();
-							}
-						}).create();
-
-				dialog.show();
-
-				// 3秒后自动退出
-				new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-					@Override
-					public void run() {
-						if (!isFinishing() && !isDestroyed()) {
-							if (dialog.isShowing()) {
-								dialog.dismiss();
-							}
-							finish();
-						}
-					}
-				}, 3000);
-			}
-		});
 	}
 }
 

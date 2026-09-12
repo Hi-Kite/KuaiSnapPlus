@@ -34,23 +34,6 @@ public class MainActivity extends Activity {
 	private static final String GITHUB_URL = "https://github.com/JiGuroLGC/KuaiSnap";
 	private static final String GITEE_URL = "https://gitee.com/JiGuro/KuaiSnap";
 
-	// 桌面图标别名的完整类名
-	private static final String ALIAS_ACTIVITY_NAME = "com.jiguro.kuaisnap.LauncherAlias";
-
-	// 扫描白名单
-	private static final Set<String> WHITELIST_DIRS = new HashSet<>(Arrays.asList("code_cache", "cache"));
-
-	// 预设的包名和版本号
-	private static final String EXPECTED_PACKAGE_NAME = "com.jiguro.kuaisnap";
-	private static final int EXPECTED_VERSION_CODE = 20251006;
-	private static final String EXPECTED_VERSION_NAME = "1.2.0";
-
-	private static final int REQUEST_STORAGE_PERMISSION_FOR_FIX = 1002;
-
-	// 卡片视图引用
-	private TextView toggleKuaidui;
-	private LinearLayout featuresKuaidui;
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -65,8 +48,6 @@ public class MainActivity extends Activity {
 			}
 			getWindow().getDecorView().setSystemUiVisibility(flags);
 		}
-
-        // 此处省略部分代码...
 
 		// 用户协议检查
 		if (!isUserAgreed()) {
@@ -153,9 +134,6 @@ public class MainActivity extends Activity {
 		} else if (id == R.id.menu_gitee) {
 			openWebsite(GITEE_URL);
 			return true;
-		} else if (id == R.id.menu_security_fix) {
-			showSecurityFixDialog();
-			return true;
 		} else if (id == R.id.menu_exit) {
 			finish();
 			return true;
@@ -163,197 +141,6 @@ public class MainActivity extends Activity {
 
 		return super.onOptionsItemSelected(item);
 	}
-
-	// 此处省略部分代码...
-
-	private void showTamperedAppDialog() {
-		runOnUiThread(new Runnable() {
-			@Override
-			public void run() {
-				final AlertDialog dialog = new AlertDialog.Builder(MainActivity.this).setTitle("安全检测异常")
-						.setMessage("检测到应用修改痕迹或存在安全风险！\n为了您的系统安全，程序将会自动退出。\n请下载正版软件或清空存储重试。").setCancelable(false)
-						.setPositiveButton("确定", new DialogInterface.OnClickListener() {
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								finish();
-							}
-						}).create();
-
-				dialog.show();
-
-				// 3秒后自动退出
-				new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-					@Override
-					public void run() {
-						if (!isFinishing() && !isDestroyed()) {
-							if (dialog.isShowing()) {
-								dialog.dismiss();
-							}
-							finish();
-						}
-					}
-				}, 3000);
-			}
-		});
-	}
-
-	private void showSecurityFixDialog() {
-		new AlertDialog.Builder(this).setTitle("安全修复")
-				.setMessage("此模式旨在修复模块受限功能，需要 Root 权限或文件读写权限。要使用 Root 权限，您可能需要提前对不奇妙应用取消 Root 屏蔽。\n\n您确实要继续修复吗？")
-				.setPositiveButton("确定", new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						startSecurityFixProcess();
-					}
-				}).setNegativeButton("取消", null).show();
-	}
-
-	/**
-	 * 使用命令行方式检测Root权限
-	 */
-	private boolean hasRootPermission() {
-		Process process = null;
-		DataOutputStream os = null;
-		try {
-			process = Runtime.getRuntime().exec("su");
-			os = new DataOutputStream(process.getOutputStream());
-			os.writeBytes("echo 'Checking root access'\n");
-			os.writeBytes("exit\n");
-			os.flush();
-
-			int exitValue = process.waitFor();
-			return exitValue == 0;
-		} catch (Exception e) {
-			return false;
-		} finally {
-			try {
-				if (os != null) {
-					os.close();
-				}
-				if (process != null) {
-					process.destroy();
-				}
-			} catch (Exception e) {
-				// 忽略异常
-			}
-		}
-	}
-
-	private void startSecurityFixProcess() {
-		// 优先检测Root权限
-		if (hasRootPermission()) {
-			// 有Root权限，直接执行完整修复
-			performSecurityFixWithRoot();
-		} else {
-			// 没有Root权限，检查存储权限
-			if (checkStoragePermission()) {
-				// 有存储权限，执行普通修复
-				performSecurityFixWithoutRoot();
-			} else {
-				// 没有存储权限，申请存储权限
-				requestStoragePermission();
-			}
-		}
-	}
-
-	private boolean checkStoragePermission() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-			return checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
-		}
-		return true; // Android 6.0以下默认有存储权限
-	}
-
-	private void requestStoragePermission() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-			requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-					REQUEST_STORAGE_PERMISSION_FOR_FIX);
-		}
-	}
-
-	@Override
-	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-		// 处理安全修复的权限请求
-		if (requestCode == REQUEST_STORAGE_PERMISSION_FOR_FIX) {
-			if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-				// 存储权限获取成功，执行修复
-				performSecurityFixWithoutRoot();
-			} else {
-				// 再次尝试检测Root权限（用户可能在权限请求期间授予了Root）
-				if (hasRootPermission()) {
-					performSecurityFixWithRoot();
-				} else {
-					// 两个权限都被拒绝，提示用户
-					Toast.makeText(this, "需要Root权限或文件读写权限才能进行修复", Toast.LENGTH_LONG).show();
-				}
-			}
-			return; // 处理完安全修复权限后直接返回
-		}
-
-		// 处理 TamperResponseHelper 的权限请求
-		TamperResponseHelper.onRequestPermissionsResult(this, requestCode, permissions, grantResults,
-				new TamperResponseHelper.TamperResponseCallback() {
-					@Override
-					public void onComplete(boolean success) {
-						if (success) {
-							// 权限获取成功，重新执行检测或弹出对话框
-							showTamperedAppDialog();
-						} else {
-							// 权限被拒绝，退出
-							finish();
-						}
-					}
-				});
-	}
-
-	private void performSecurityFixWithRoot() {
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				boolean fixedPrivate = fixConfigInPrivateDirectories();
-				boolean fixedPublic = fixConfigInPublicDirectoryWithRoot();
-
-				final boolean result = fixedPrivate || fixedPublic;
-				runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						if (result) {
-							Toast.makeText(MainActivity.this, "安全修复完成，已移除模块限制", Toast.LENGTH_LONG).show();
-						} else {
-							Toast.makeText(MainActivity.this, "未检测到需要修复的配置", Toast.LENGTH_SHORT).show();
-						}
-					}
-				});
-			}
-		}).start();
-	}
-
-	// 此处省略部分代码...
-
-	private void performSecurityFixWithoutRoot() {
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				boolean fixed = fixConfigInPublicDirectory();
-
-				final boolean result = fixed;
-				runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						if (result) {
-							Toast.makeText(MainActivity.this, "安全修复完成，已移除模块限制", Toast.LENGTH_LONG).show();
-							Toast.makeText(MainActivity.this, "若还有问题，请考虑使用Root权限再次修复", Toast.LENGTH_LONG).show();
-						} else {
-							Toast.makeText(MainActivity.this, "未检测到需要修复的配置", Toast.LENGTH_SHORT).show();
-						}
-					}
-				});
-			}
-		}).start();
-	}
-
-	// 此处省略部分代码...
 
 	private void openWebsite(String url) {
 		try {

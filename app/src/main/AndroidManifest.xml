@@ -52,7 +52,7 @@ android:allowBackup="true"
         </activity>
   
         <meta-data
-			android:name="快怼"
+			android:name="xposedmodule"
 			android:value="true"/>
 		<meta-data
 			android:name="xposeddescription"

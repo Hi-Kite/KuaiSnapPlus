@@ -17,13 +17,11 @@ import java.io.*;
 import java.lang.reflect.*;
 import java.text.*;
 import java.util.*;
-import org.json.JSONObject;
 
 public class xposed implements IXposedHookLoadPackage {
 
 	public static Activity Context;
 	private static final String PREFS_NAME = "KuaiSnap_Settings";
-	private static volatile boolean hasShownBlockedToast = false;
 
 	private static final String IMAGE_DIR = "/storage/emulated/0/Android/data/com.kuaiduizuoye.scan/files/image/";
 	private static final String TARGET_SUFFIX = "_TRANSITION2.jpg";
@@ -31,6 +29,188 @@ public class xposed implements IXposedHookLoadPackage {
 	// 广告URL列表
 	public static final String[] adStarts = {"https://adx.zuoyebang.com", "https://c.kuaiduizuoye.com/adx",
 			"https://ad.", "https://ads.", "http://ad.", "http://ads."};
+
+	// 作用域包名
+	private static final String TARGET_PACKAGE = "com.kuaiduizuoye.scan";
+
+	/*
+	 * ============================ 版本适配 ============================
+	 * 快对在版本更新后会重新混淆关键类名与方法名，部分资源 ID 也会整体偏移。
+	 * 以下配置按版本列出所有 Hook 目标，运行时根据作用域软件的版本自动选择。
+	 *
+	 * 已适配版本：
+	 *   6.77.0 (versionCode 1460)
+	 *   7.7.0  (versionCode 1810)
+	 *
+	 * 新增版本适配步骤：
+	 *   1. 用 jadx 反编译新版 APK，按“语义”而非名字定位下列各 Hook 点；
+	 *   2. 用 apktool 反编译资源，确认各控件 ID（资源名已被混淆，需按结构比对）；
+	 *   3. 复制一份 VerSpec 并填写，然后加入 selectSpec() 的识别逻辑。
+	 * ==================================================================
+	 */
+
+	/** 单个快对版本的 Hook 目标配置 */
+	static class VerSpec {
+		/** 版本标识，仅用于日志 */
+		String label;
+		/** 会员失效弹窗判定：返回 true 时会弹出“会员已失效”，需强制为 false */
+		String clsVipDialogShow;
+		String mtdVipDialogShow;
+		/** 会员状态（字符串 "1"/"0"） */
+		String clsVipStateStr;
+		String mtdVipStateStr;
+		/** MineFragment 中的会员状态（字符串） */
+		String mtdMineFragmentVipStr;
+		/** activity.mine.util.c 中的会员状态（字符串） */
+		String mtdMineUtilVipStr;
+		/** 广告配置工具中的会员判定 */
+		String clsFastAdConfig;
+		String mtdFastAdVip;
+		/** vip.status 原始数值（int） */
+		String clsRawVipStatus;
+		String mtdRawVipStatus;
+		/** 布尔型会员判断（横屏浏览等 VIP 功能的开关） */
+		String mtdVipGate;
+		/** 高清特权 */
+		String clsHdPrivilege;
+		String mtdHdPrivilege;
+		/** 设置 FLAG_SECURE 的方法（截屏限制） */
+		String mtdScreenCapture;
+		/** 退出解析页时弹出收藏弹窗的方法 */
+		String mtdCollectDialog;
+		/** 保存图片对话框的点击监听器：类名与方法名 */
+		String clsSaveImageListener;
+		String mtdSaveImageListener;
+		/** “保存图片”按钮 ID */
+		int idSaveImage;
+		/** 主页红包推广 ID */
+		int idRedPacket;
+		/** 解析页“勤动脑多思考”横条 ID */
+		int idNoticeBar;
+		/** “横屏浏览”右上角 VIP 角标 ID */
+		int idVipBadge;
+		/** “我的”页面会员 Banner ID */
+		int idVipBanner;
+		/** 讲解视频遮挡 WebView ID */
+		int idVideoMask;
+	}
+
+	/** 双方版本一致的稳定类名 */
+	private static final String CLS_MINE_FRAGMENT = "com.kuaiduizuoye.scan.activity.mine.fragment.MineFragment";
+	private static final String CLS_MINE_UTIL = "com.kuaiduizuoye.scan.activity.mine.util.c";
+	private static final String CLS_MINE_LOGIN_VIEW = "com.kuaiduizuoye.scan.activity.mine.widget.MineUserLoginView";
+	private static final String CLS_MINE_AI_LOGIN_VIEW = "com.kuaiduizuoye.scan.activity.mine.widget.MineAiUserLoginView";
+	private static final String CLS_MAIN_ACTIVITY = "com.kuaiduizuoye.scan.activity.main.activity.MainActivity";
+	private static final String CLS_SETTINGS_ACTIVITY = "com.kuaiduizuoye.scan.activity.common.CommonCacheHybridActivity";
+	private static final String CLS_BOOK_BROWSE = "com.kuaiduizuoye.scan.activity.scan.activity.BookCompleteDetailsPictureBrowseActivity";
+	private static final String CLS_SEARCH_SCAN = "com.kuaiduizuoye.scan.activity.scan.activity.SearchScanCodeResultActivity";
+	private static final String CLS_VIDEO_ACTIVITY = "com.kuaiduizuoye.scan.activity.video.sdk.VideoPlayerActivity";
+	private static final String CLS_MULTI_VIDEO_BEAN = "com.zybang.sdk.player.ui.model.MultipleVideoBean";
+
+	/** 快对 6.77.0 的适配配置 */
+	private static final VerSpec V6_77_0 = new VerSpec();
+	/** 快对 7.7.0 的适配配置 */
+	private static final VerSpec V7_7_0 = new VerSpec();
+
+	static {
+		// ------------------------------ 6.77.0 ------------------------------
+		V6_77_0.label = "6.77.0";
+		V6_77_0.clsVipDialogShow = "com.kuaiduizuoye.scan.activity.database.a.i";
+		V6_77_0.mtdVipDialogShow = "a";
+		V6_77_0.clsVipStateStr = "com.kuaiduizuoye.scan.activity.database.a.i";
+		V6_77_0.mtdVipStateStr = "c";
+		V6_77_0.mtdMineFragmentVipStr = "h";
+		V6_77_0.mtdMineUtilVipStr = "k";
+		V6_77_0.clsFastAdConfig = "com.kuaiduizuoye.scan.activity.newadvertisement.f.a";
+		V6_77_0.mtdFastAdVip = "c";
+		V6_77_0.clsRawVipStatus = "com.kuaiduizuoye.scan.activity.vip.a.a";
+		V6_77_0.mtdRawVipStatus = "c";
+		V6_77_0.mtdVipGate = "a";
+		V6_77_0.clsHdPrivilege = "com.kuaiduizuoye.scan.activity.scan.util.ai";
+		V6_77_0.mtdHdPrivilege = "b";
+		V6_77_0.mtdScreenCapture = "u";
+		V6_77_0.mtdCollectDialog = "M";
+		V6_77_0.clsSaveImageListener = "com.kuaiduizuoye.scan.activity.scan.util.-$$Lambda$az$yoGpX1V-cpnva81wmw-_K8CTTPI";
+		V6_77_0.mtdSaveImageListener = "onClick";
+		V6_77_0.idSaveImage = 0x7f090e80;
+		V6_77_0.idRedPacket = 0x7f090c82;
+		V6_77_0.idNoticeBar = 0x7f090144;
+		V6_77_0.idVipBadge = 0x7f0910e7;
+		V6_77_0.idVipBanner = 0x7f091224;
+		V6_77_0.idVideoMask = 0x7f0912e3;
+
+		// ------------------------------ 7.7.0 ------------------------------
+		// 关键类被重新混淆：database.a.i -> dh.i；newadvertisement.f.a -> aj.a
+		//                   vip.a.a -> bk.a；scan.util.ai -> oj.p0
+		//                   scan.util.az -> oj.p1（其匿名监听器 -> oj.o1）
+		V7_7_0.label = "7.7.0";
+		V7_7_0.clsVipDialogShow = "dh.i";
+		V7_7_0.mtdVipDialogShow = "j";
+		V7_7_0.clsVipStateStr = "dh.i";
+		V7_7_0.mtdVipStateStr = "d";
+		V7_7_0.mtdMineFragmentVipStr = "d0";
+		V7_7_0.mtdMineUtilVipStr = "i";
+		V7_7_0.clsFastAdConfig = "aj.a";
+		V7_7_0.mtdFastAdVip = "j";
+		V7_7_0.clsRawVipStatus = "bk.a";
+		V7_7_0.mtdRawVipStatus = "f";
+		V7_7_0.mtdVipGate = "o";
+		V7_7_0.clsHdPrivilege = "oj.p0";
+		V7_7_0.mtdHdPrivilege = "a";
+		V7_7_0.mtdScreenCapture = "W3";
+		V7_7_0.mtdCollectDialog = "S2";
+		V7_7_0.clsSaveImageListener = "oj.o1";
+		V7_7_0.mtdSaveImageListener = "onClick";
+		V7_7_0.idSaveImage = 0x7f090eba;
+		V7_7_0.idRedPacket = 0x7f090cc7;
+		V7_7_0.idNoticeBar = 0x7f09013f;
+		V7_7_0.idVipBadge = 0x7f0910f7;
+		V7_7_0.idVipBanner = 0x7f091229;
+		V7_7_0.idVideoMask = 0x7f0912e4;
+	}
+
+	/** 当前生效的版本配置，默认按最新版处理 */
+	private static VerSpec spec = V7_7_0;
+
+	/**
+	 * 选择适配配置：优先按版本名判断，失败时按关键类是否存在来探测。
+	 */
+	private static VerSpec selectSpec(Context context, ClassLoader classLoader) {
+		String versionName = null;
+		int versionCode = -1;
+		try {
+			android.content.pm.PackageInfo info = context.getPackageManager().getPackageInfo(TARGET_PACKAGE, 0);
+			versionName = info.versionName;
+			versionCode = info.versionCode;
+		} catch (Throwable t) {
+			XposedBridge.log("读取快对版本信息失败: " + t);
+		}
+
+		if (versionName != null) {
+			if (versionName.startsWith("7.")) {
+				return V7_7_0;
+			}
+			if (versionName.startsWith("6.")) {
+				return V6_77_0;
+			}
+		}
+
+		// 版本名不可用时，按特征类探测：7.7.0 使用 oj.p1，6.77.0 使用 scan.util.az
+		try {
+			classLoader.loadClass(V7_7_0.clsSaveImageListener);
+			return V7_7_0;
+		} catch (Throwable ignored) {
+		}
+		try {
+			classLoader.loadClass("com.kuaiduizuoye.scan.activity.scan.util.az");
+			return V6_77_0;
+		} catch (Throwable ignored) {
+		}
+
+		XposedBridge.log("无法识别快对版本(versionName=" + versionName + ", versionCode=" + versionCode
+				+ ")，按 7.7.0 处理");
+		return V7_7_0;
+	}
 
 	@Override
 	public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam packageName) throws Throwable {
@@ -47,7 +227,7 @@ public class xposed implements IXposedHookLoadPackage {
 			return;
 		}
 
-		if (!packageName.packageName.equals("com.kuaiduizuoye.scan"))
+		if (!packageName.packageName.equals(TARGET_PACKAGE))
 			return;
 
 		XposedHelpers.findAndHookMethod(android.app.Application.class, "attach", Context.class, new XC_MethodHook() {
@@ -55,12 +235,6 @@ public class xposed implements IXposedHookLoadPackage {
 			protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 				final Context context = (Context) param.args[0];
 				final ClassLoader classLoader = context.getClassLoader();
-
-				// 阻断检查
-				if (shouldBlockHook(context, packageName.packageName)) {
-					showBlockedToast(context);
-					return;
-				}
 
 				if (Context == null) {
 					XposedHelpers.findAndHookMethod(Activity.class, "onCreate", Bundle.class, new XC_MethodHook() {
@@ -77,7 +251,7 @@ public class xposed implements IXposedHookLoadPackage {
 				}
 
 				// Hook 设置页弹窗
-				XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.common.CommonCacheHybridActivity",
+				XposedHelpers.findAndHookMethod(CLS_SETTINGS_ACTIVITY,
 						classLoader, "onCreate", Bundle.class, new XC_MethodHook() {
 							@Override
 							protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -100,6 +274,10 @@ public class xposed implements IXposedHookLoadPackage {
 								}, 1000);
 							}
 						});
+
+				// 识别快对版本，选择对应的 Hook 目标
+				spec = selectSpec(context, classLoader);
+				XposedBridge.log("快怼: 已识别快对版本 " + spec.label);
 
 				// 设置所有hook
 				setupAllHooks(context, classLoader);
@@ -181,9 +359,9 @@ public class xposed implements IXposedHookLoadPackage {
 		try {
 			XposedBridge.log("开始设置组件屏蔽Hook");
 
-			// 屏蔽主页面红包推广 (ID: 7f090c82)
+			// 屏蔽主页面红包推广
 			if (getBooleanSetting(context, "block_red_packet", false)) {
-				XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.main.activity.MainActivity",
+				XposedHelpers.findAndHookMethod(CLS_MAIN_ACTIVITY,
 						classLoader, "onCreate", Bundle.class, new XC_MethodHook() {
 							@Override
 							protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -192,7 +370,7 @@ public class xposed implements IXposedHookLoadPackage {
 									@Override
 									public void run() {
 										try {
-											View redPacketView = activity.findViewById(0x7f090c82);
+											View redPacketView = activity.findViewById(spec.idRedPacket);
 											if (redPacketView == null) {
 												XposedBridge.log("红包视图未找到");
 											} else {
@@ -214,9 +392,9 @@ public class xposed implements IXposedHookLoadPackage {
 						});
 			}
 
-			// 屏蔽解析页面提示横条 (ID: 7f090144) 和 VIP角标 (ID: 7f0910e7)
+			// 屏蔽解析页面提示横条和 VIP角标
 			XposedHelpers.findAndHookMethod(
-					"com.kuaiduizuoye.scan.activity.scan.activity.BookCompleteDetailsPictureBrowseActivity",
+					CLS_BOOK_BROWSE,
 					classLoader, "onCreate", Bundle.class, new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -255,7 +433,7 @@ public class xposed implements IXposedHookLoadPackage {
 														}
 													} else {
 														// 如果基于文本查找失败，尝试使用原来的ID查找作为备用方案
-														View noticeBarById = activity.findViewById(0x7f090144);
+														View noticeBarById = activity.findViewById(spec.idNoticeBar);
 														if (noticeBarById != null) {
 															ViewGroup parent = (ViewGroup) noticeBarById.getParent();
 															if (parent != null) {
@@ -269,7 +447,7 @@ public class xposed implements IXposedHookLoadPackage {
 												// 屏蔽VIP相关控件（包括角标和文字）
 												if (getBooleanSetting(activity, "block_vip_badge", true)) {
 													// 屏蔽VIP角标（通过ID查找）
-													View vipBadge = activity.findViewById(0x7f0910e7);
+													View vipBadge = activity.findViewById(spec.idVipBadge);
 													if (vipBadge != null) {
 														ViewGroup parent = (ViewGroup) vipBadge.getParent();
 														if (parent != null) {
@@ -401,7 +579,7 @@ public class xposed implements IXposedHookLoadPackage {
 
 			// Hook BookCompleteDetailsPictureBrowseActivity的返回键处理
 			XposedHelpers.findAndHookMethod(
-					"com.kuaiduizuoye.scan.activity.scan.activity.BookCompleteDetailsPictureBrowseActivity",
+					CLS_BOOK_BROWSE,
 					classLoader, "onBackPressed", new XC_MethodHook() {
 						@Override
 						protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
@@ -417,8 +595,8 @@ public class xposed implements IXposedHookLoadPackage {
 					});
 
 			// Hook SearchScanCodeResultActivity的弹窗显示方法，然后立即退出Activity
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.scan.activity.SearchScanCodeResultActivity",
-					classLoader, "M", new XC_MethodHook() {
+			XposedHelpers.findAndHookMethod(CLS_SEARCH_SCAN,
+					classLoader, spec.mtdCollectDialog, new XC_MethodHook() {
 						@Override
 						protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 							try {
@@ -575,6 +753,9 @@ public class xposed implements IXposedHookLoadPackage {
 		}
 	}
 
+	// 新人banner请求路径（快对通过 NetConfig.getHost() 拼接，故只能匹配路径部分）
+	private static final String NEW_USER_BANNER_PATH = "/kdapi/conf/mycard";
+
 	// 屏蔽新人banner的hook
 	private void setupNewUserBannerHooks(final ClassLoader classLoader) {
 		try {
@@ -585,7 +766,7 @@ public class xposed implements IXposedHookLoadPackage {
 				@Override
 				protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 					String url = (String) param.args[0];
-					if (url != null && url.equals("https://www.kuaiduizuoye.com/kdapi/conf/mycard")) {
+					if (url != null && url.contains(NEW_USER_BANNER_PATH)) {
 						XposedBridge.log("拦截新人banner请求: " + url);
 						// 将URL替换为无效URL
 						param.args[0] = "about:blank";
@@ -605,7 +786,7 @@ public class xposed implements IXposedHookLoadPackage {
 			XposedBridge.log("开始设置会员Banner屏蔽Hook");
 
 			// Hook MainActivity的onCreate方法
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.main.activity.MainActivity", classLoader,
+			XposedHelpers.findAndHookMethod(CLS_MAIN_ACTIVITY, classLoader,
 					"onCreate", Bundle.class, new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -620,18 +801,18 @@ public class xposed implements IXposedHookLoadPackage {
 											return;
 										}
 
-										// 查找并移除ID为7f091224的控件
-										View vipBanner = activity.findViewById(0x7f091224);
+										// 查找并移除会员Banner控件
+										View vipBanner = activity.findViewById(spec.idVipBanner);
 										if (vipBanner != null) {
 											ViewGroup parent = (ViewGroup) vipBanner.getParent();
 											if (parent != null) {
 												parent.removeView(vipBanner);
-												XposedBridge.log("成功屏蔽会员Banner (ID: 7f091224)");
+												XposedBridge.log("成功屏蔽会员Banner (ID: " + Integer.toHexString(spec.idVipBanner) + ")");
 											} else {
 												XposedBridge.log("会员Banner的父视图为空");
 											}
 										} else {
-											XposedBridge.log("未找到会员Banner (ID: 7f091224)");
+											XposedBridge.log("未找到会员Banner (ID: " + Integer.toHexString(spec.idVipBanner) + ")");
 
 											// 尝试通过其他方式查找
 											tryFindVipBannerByOtherMeans(activity);
@@ -714,10 +895,10 @@ public class xposed implements IXposedHookLoadPackage {
 		try {
 			XposedBridge.log("开始设置图片解密Hook");
 
-			// Hook lambda回调类的onClick方法
+			// Hook 保存图片对话框的点击监听器
 			XposedHelpers.findAndHookMethod(
-					"com.kuaiduizuoye.scan.activity.scan.util.-$$Lambda$az$yoGpX1V-cpnva81wmw-_K8CTTPI", classLoader,
-					"onClick", View.class, new XC_MethodHook() {
+					spec.clsSaveImageListener, classLoader,
+					spec.mtdSaveImageListener, View.class, new XC_MethodHook() {
 						@Override
 						protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 							// 获取被点击的View
@@ -726,8 +907,8 @@ public class xposed implements IXposedHookLoadPackage {
 
 							XposedBridge.log("点击的按钮ID: " + Integer.toHexString(viewId));
 
-							// 只对ID为0x7f090e80的按钮进行处理
-							if (viewId == 0x7f090e80) {
+							// 只对“保存图片”按钮进行处理
+							if (viewId == spec.idSaveImage) {
 								// 阻止原方法执行
 								param.setResult(null);
 
@@ -2156,7 +2337,7 @@ public class xposed implements IXposedHookLoadPackage {
 			Class<?> shareresourceCollectConfigClass = XposedHelpers
 					.findClass("com.kuaiduizuoye.scan.common.net.model.v1.ShareresourceCollectConfig", classLoader);
 
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.database.a.i", classLoader, "a",
+			XposedHelpers.findAndHookMethod(spec.clsVipDialogShow, classLoader, spec.mtdVipDialogShow,
 					shareresourceCollectConfigClass, new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam parameter) throws Throwable {
@@ -2165,7 +2346,7 @@ public class xposed implements IXposedHookLoadPackage {
 					});
 
 			//hook② - 方法二
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.database.a.i", classLoader, "c",
+			XposedHelpers.findAndHookMethod(spec.clsVipStateStr, classLoader, spec.mtdVipStateStr,
 					new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam parameter) throws Throwable {
@@ -2174,8 +2355,8 @@ public class xposed implements IXposedHookLoadPackage {
 					});
 
 			//hook③ - 方法三
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.mine.fragment.MineFragment", classLoader,
-					"h", new XC_MethodHook() {
+			XposedHelpers.findAndHookMethod(CLS_MINE_FRAGMENT, classLoader,
+					spec.mtdMineFragmentVipStr, new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam parameter) throws Throwable {
 							parameter.setResult("1");
@@ -2183,7 +2364,7 @@ public class xposed implements IXposedHookLoadPackage {
 					});
 
 			//hook④ - 方法四
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.mine.util.c", classLoader, "k",
+			XposedHelpers.findAndHookMethod(CLS_MINE_UTIL, classLoader, spec.mtdMineUtilVipStr,
 					new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam parameter) throws Throwable {
@@ -2192,7 +2373,7 @@ public class xposed implements IXposedHookLoadPackage {
 					});
 
 			//hook⑤ - 方法五
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.newadvertisement.f.a", classLoader, "c",
+			XposedHelpers.findAndHookMethod(spec.clsFastAdConfig, classLoader, spec.mtdFastAdVip,
 					new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam parameter) throws Throwable {
@@ -2208,12 +2389,21 @@ public class xposed implements IXposedHookLoadPackage {
 
 	private void setupRotateHooks(ClassLoader classLoader) {
 		try {
-			//hook⑥ - 方法六
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.vip.a.a", classLoader, "c",
+			//hook⑥ - 方法六：vip.status 原始值，强制为 1（会员有效）
+			XposedHelpers.findAndHookMethod(spec.clsRawVipStatus, classLoader, spec.mtdRawVipStatus,
 					new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam parameter) throws Throwable {
 							parameter.setResult(1);
+						}
+					});
+
+			//hook⑥b - 布尔型会员判断（“横屏浏览”等 VIP 功能的开关）
+			XposedHelpers.findAndHookMethod(spec.clsRawVipStatus, classLoader, spec.mtdVipGate,
+					new XC_MethodHook() {
+						@Override
+						protected void afterHookedMethod(MethodHookParam parameter) throws Throwable {
+							parameter.setResult(true);
 						}
 					});
 			XposedBridge.log("横屏旋转Hook设置成功");
@@ -2225,7 +2415,7 @@ public class xposed implements IXposedHookLoadPackage {
 	private void setupHdHooks(ClassLoader classLoader) {
 		try {
 			//hook⑦ - 方法七
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.scan.util.ai", classLoader, "b",
+			XposedHelpers.findAndHookMethod(spec.clsHdPrivilege, classLoader, spec.mtdHdPrivilege,
 					new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam parameter) throws Throwable {
@@ -2241,46 +2431,20 @@ public class xposed implements IXposedHookLoadPackage {
 	private void setupVipBadgeHooks(final ClassLoader classLoader) {
 		try {
 			//hook⑧ - MineAiUserLoginView setVipIcon方法
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.mine.widget.MineAiUserLoginView",
+			XposedHelpers.findAndHookMethod(CLS_MINE_AI_LOGIN_VIEW,
 					classLoader, "setVipIcon", new XC_MethodHook() {
 						@Override
 						protected void beforeHookedMethod(MethodHookParam parameter) throws Throwable {
-							Object instance = parameter.thisObject;
-							Object mUserInfo = XposedHelpers.getObjectField(instance, "mUserInfo");
-							if (mUserInfo != null) {
-								Object vip = XposedHelpers.getObjectField(mUserInfo, "vip");
-								if (vip != null) {
-									XposedHelpers.setIntField(vip, "status", 1);
-								} else {
-									Class<?> vipClass = XposedHelpers.findClass("com.kuaiduizuoye.scan.entity.VipInfo",
-											classLoader);
-									Object newVip = vipClass.newInstance();
-									XposedHelpers.setIntField(newVip, "status", 1);
-									XposedHelpers.setObjectField(mUserInfo, "vip", newVip);
-								}
-							}
+							forceVipStatus(parameter.thisObject);
 						}
 					});
 
 			//hook⑨ - MineUserLoginView setVipIcon方法
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.mine.widget.MineUserLoginView", classLoader,
+			XposedHelpers.findAndHookMethod(CLS_MINE_LOGIN_VIEW, classLoader,
 					"setVipIcon", new XC_MethodHook() {
 						@Override
 						protected void beforeHookedMethod(MethodHookParam parameter) throws Throwable {
-							Object instance = parameter.thisObject;
-							Object mUserInfo = XposedHelpers.getObjectField(instance, "mUserInfo");
-							if (mUserInfo != null) {
-								Object vip = XposedHelpers.getObjectField(mUserInfo, "vip");
-								if (vip != null) {
-									XposedHelpers.setIntField(vip, "status", 1);
-								} else {
-									Class<?> vipClass = XposedHelpers.findClass("com.kuaiduizuoye.scan.entity.VipInfo",
-											classLoader);
-									Object newVip = vipClass.newInstance();
-									XposedHelpers.setIntField(newVip, "status", 1);
-									XposedHelpers.setObjectField(mUserInfo, "vip", newVip);
-								}
-							}
+							forceVipStatus(parameter.thisObject);
 						}
 					});
 			XposedBridge.log("会员金标Hook设置成功");
@@ -2289,12 +2453,33 @@ public class xposed implements IXposedHookLoadPackage {
 		}
 	}
 
+	/**
+	 * 将视图持有的用户信息中的 VIP 状态强制为 1，使会员金标显示为已开通。
+	 * 注意：不能自行构造 vip 对象，其类型由快对内部持有，凭空 new 一个无法被识别。
+	 */
+	private void forceVipStatus(Object view) {
+		try {
+			Object mUserInfo = XposedHelpers.getObjectField(view, "mUserInfo");
+			if (mUserInfo == null) {
+				return;
+			}
+			Object vip = XposedHelpers.getObjectField(mUserInfo, "vip");
+			if (vip == null) {
+				XposedBridge.log("会员金标: mUserInfo.vip 为空，跳过");
+				return;
+			}
+			XposedHelpers.setIntField(vip, "status", 1);
+		} catch (Throwable t) {
+			XposedBridge.log("会员金标: 强制会员状态失败 " + t);
+		}
+	}
+
 	private void setupScreenCaptureHooks(ClassLoader classLoader) {
 		try {
 			// hook⑩ - 解除截/录屏限制
 			XposedHelpers.findAndHookMethod(
-					"com.kuaiduizuoye.scan.activity.scan.activity.BookCompleteDetailsPictureBrowseActivity",
-					classLoader, "u", new XC_MethodHook() {
+					CLS_BOOK_BROWSE,
+					classLoader, spec.mtdScreenCapture, new XC_MethodHook() {
 						@Override
 						protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 							param.setResult(null);
@@ -2374,7 +2559,7 @@ public class xposed implements IXposedHookLoadPackage {
 			XposedBridge.log("开始设置讲解视频解锁Hook");
 
 			// Hook MultipleVideoBean的getHasBuy方法，使其返回1
-			XposedHelpers.findAndHookMethod("com.zybang.sdk.player.ui.model.MultipleVideoBean", classLoader,
+			XposedHelpers.findAndHookMethod(CLS_MULTI_VIDEO_BEAN, classLoader,
 					"getHasBuy", new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -2385,7 +2570,7 @@ public class xposed implements IXposedHookLoadPackage {
 
 			// 屏蔽视频播放器特定元素
 			// Hook VideoPlayerActivity的onCreate方法
-			XposedHelpers.findAndHookMethod("com.kuaiduizuoye.scan.activity.video.sdk.VideoPlayerActivity", classLoader,
+			XposedHelpers.findAndHookMethod(CLS_VIDEO_ACTIVITY, classLoader,
 					"onCreate", Bundle.class, new XC_MethodHook() {
 						@Override
 						protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -2400,18 +2585,20 @@ public class xposed implements IXposedHookLoadPackage {
 											return;
 										}
 
-										// 查找并移除ID为7f0912e3的控件
-										View targetElement = activity.findViewById(0x7f0912e3);
+										// 查找并移除讲解视频的遮挡 WebView
+										View targetElement = activity.findViewById(spec.idVideoMask);
 										if (targetElement != null) {
 											ViewGroup parent = (ViewGroup) targetElement.getParent();
 											if (parent != null) {
 												parent.removeView(targetElement);
-												XposedBridge.log("成功屏蔽视频播放器元素 (ID: 7f0912e3)");
+												XposedBridge.log("成功屏蔽视频播放器元素 (ID: " + Integer.toHexString(spec.idVideoMask)
+														+ ")");
 											} else {
 												XposedBridge.log("视频播放器元素的父视图为空");
 											}
 										} else {
-											XposedBridge.log("未找到视频播放器元素 (ID: 7f0912e3)");
+											XposedBridge.log("未找到视频播放器元素 (ID: " + Integer.toHexString(spec.idVideoMask)
+													+ ")");
 
 										}
 									} catch (Exception e) {
@@ -2709,48 +2896,6 @@ public class xposed implements IXposedHookLoadPackage {
 		} catch (Exception e) {
 			XposedBridge.log("更新开关外观异常: " + e.getMessage());
 		}
-	}
-
-	private boolean shouldBlockHook(Context ctx, String packageName) {
-		// 检查私有目录
-		File privateConfig = new File(ctx.getExternalFilesDir(null), ".Kuaisnap/config.json");
-		if (privateConfig.exists() && hasShieldingAdConfig(privateConfig)) {
-			return true; // 如果私有目录的配置文件存在且包含屏蔽标记，则阻断Hook
-		}
-
-		// 检查公共目录
-		File publicConfig = new File("/storage/emulated/0/.Kuaisnap/config.json");
-		if (publicConfig.exists() && hasShieldingAdConfig(publicConfig)) {
-			return true; // 如果公共目录的配置文件存在且包含屏蔽标记，则阻断Hook
-		}
-
-		return false; // 两个位置都没有找到有效的屏蔽配置，允许Hook
-	}
-
-	// 此处省略部分代码...
-
-	private void showBlockedToast(final Context ctx) {
-		if (hasShownBlockedToast)
-			return;
-		hasShownBlockedToast = true;
-
-		new Handler(Looper.getMainLooper()).post(new Runnable() {
-			@Override
-			public void run() {
-				Toast toast = new Toast(ctx);
-
-				TextView textView = new TextView(ctx);
-				textView.setPadding(32, 24, 32, 24);
-				textView.setTextColor(Color.WHITE);
-				textView.setTextSize(14);
-				textView.setBackgroundColor(0xCC000000);
-				textView.setText("检测到模块非法，Hook 功能被禁用。\n请安装正版模块，并在授予其 Root 或文件读写权限后进入模块主页→打开右上角菜单→选择安全修复，以恢复被禁用功能。");
-
-				toast.setView(textView);
-				toast.setDuration(Toast.LENGTH_LONG);
-				toast.show();
-			}
-		});
 	}
 
 	private int dp(Context ctx, int dp) {
