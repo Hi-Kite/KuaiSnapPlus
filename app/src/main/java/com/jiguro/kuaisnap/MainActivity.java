@@ -30,9 +30,10 @@ public class MainActivity extends Activity {
 	public static final String KEY_AUTO_UPDATE = "auto_update_enabled";
 	public static final String KEY_HIDE_ICON = "hide_app_icon";
 
-	private static final String UPDATE_URL = "https://gitee.com/JiGuro/KuaiSnap/raw/master/update.json";
-	private static final String GITHUB_URL = "https://github.com/JiGuroLGC/KuaiSnap";
-	private static final String GITEE_URL = "https://gitee.com/JiGuro/KuaiSnap";
+	// 更新清单与本项目地址（均指向当前仓库）
+	private static final String UPDATE_URL = "https://raw.githubusercontent.com/Hi-Kite/KuaiSnap/main/update.json";
+	private static final String GITHUB_URL = "https://github.com/Hi-Kite/KuaiSnap";
+	private static final String WEBSITE_URL = "https://hi-kite.github.io";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -56,7 +57,7 @@ public class MainActivity extends Activity {
 		}
 
 		setContentView(R.layout.main);
-		setTitle(activate() ? "快怼，神界已成" : "快怼，蓄势未发");
+		setTitle(activate() ? "快怼+，神界已成" : "快怼+，蓄势未发");
 
 		// 初始化图标状态
 		SharedPreferences sp = getSharedPreferences(SP_NAME, MODE_PRIVATE);
@@ -77,7 +78,7 @@ public class MainActivity extends Activity {
 			tvWebsite.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View v) {
-					openWebsite("https://jigurolgc.github.io");
+					openWebsite(WEBSITE_URL);
 				}
 			});
 		}
@@ -130,9 +131,6 @@ public class MainActivity extends Activity {
 			return true;
 		} else if (id == R.id.menu_github) {
 			openWebsite(GITHUB_URL);
-			return true;
-		} else if (id == R.id.menu_gitee) {
-			openWebsite(GITEE_URL);
 			return true;
 		} else if (id == R.id.menu_exit) {
 			finish();
@@ -425,8 +423,9 @@ public class MainActivity extends Activity {
 
 	private void showAgreementDialog() {
 
-		new AlertDialog.Builder(this).setTitle("软件使用声明").setMessage("作者：JiGuro（以下简称\"本人\"或\"声明者\"）\n"
-				+ "欢迎使用\"快怼\"模块（以下简称\"本软件\"），这是一个对作用域软件（以下简称\"Hook 软件\"）进行研究的模块。在使用本软件前，请确保您已仔细阅读并完全理解并同意《软件使用声明》（以下简称\"本声明\"）。未成年人应在监护人的指导下阅读、理解并同意本声明后，方可使用本软件。如您不同意本声明的任何内容，请勿使用本软件。\n"
+		new AlertDialog.Builder(this).setTitle("软件使用声明").setMessage("原作者：JiGuro（以下简称\"本人\"或\"声明者\"）\n"
+				+ "本项目\"快怼+\"（KuaiSnapPlus）是原作者 JiGuro 的\"快怼\"（KuaiSnap）项目的 fork，由 Hi-Kite 在原项目基础上继续维护。以下声明沿用原项目，同样适用于本项目。\n"
+				+ "欢迎使用\"快怼+\"模块（以下简称\"本软件\"），这是一个对作用域软件（以下简称\"Hook 软件\"）进行研究的模块。在使用本软件前，请确保您已仔细阅读并完全理解并同意《软件使用声明》（以下简称\"本声明\"）。未成年人应在监护人的指导下阅读、理解并同意本声明后，方可使用本软件。如您不同意本声明的任何内容，请勿使用本软件。\n"
 				+ "本软件代码系本人从互联网第三方公开渠道收集整理，分享仅供技术交流。依据《中华人民共和国计算机软件保护条例》相关规定，此软件仅用于学习和研究软件的设计思想与原理，严禁用于任何商业或非法目的。一旦学习研究目的达成，或用户决定不再用于学习研究目的，应立即将其从存储设备中彻底删除。用户需确保自身使用行为符合《中华人民共和国著作权法》、《中华人民共和国计算机软件保护条例》、《中华人民共和国网络安全法》、《中华人民共和国数据安全法》、《中华人民共和国个人信息保护法》等相关法律法规的规定，一切法律责任由使用者自行承担。\n"
 				+ "知识产权严格受法律保护，请勿侵权。若本软件所 Hook 软件包含或基于开源软件，用户使用本软件时亦需遵守相关开源许可证的条款。本人倡导并大力支持正版软件，正版软件的使用不仅能确保良好的用户体验和稳定的性能，更是对软件开发者创新和努力的尊重与支持。如果您发现 Hook 软件对您有帮助或您喜欢它，请积极支持正版。\n"
 				+ "在此，特别强调，本人分享本软件纯粹是为了学习交流之目的，不带有任何盈利意图。同时，用户应充分认识到，由于本软件代码来源的第三方属性及本人能力的局限性，本人无法对本软件的安全性（包括但不限于是否存在计算机病毒、恶意代码、后门程序、安全漏洞或侵犯隐私的功能）、合法性（如版权状态）提供任何形式的保证或担保。在任何情况下，声明者均不对因下载、安装、使用、无法使用或依赖本软件所导致的任何直接、间接、附带、特殊、惩罚性或后果性的损害（包括但不限于数据丢失、系统损坏、业务中断、利润损失、隐私泄露、法律纠纷等）承担任何责任，无论该等责任是基于合同、侵权（包括过失）、严格责任或其他法律理论产生，也无论声明者是否事先被告知该等损害的可能性。本人强烈建议用户弃用模块，并通过软件开发者官方渠道获取正版软件以确保安全性和合法性。本人承诺，本软件的分享过程中未主动植入任何计算机病毒、后门程序，也未故意设置任何用于侵犯用户隐私的功能。若用户发现本软件有此类问题，请务必及时联系本人，本人将立即采取删除等措施，坚决阻止本软件的进一步传播。\n"

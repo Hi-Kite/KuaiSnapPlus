@@ -16,10 +16,6 @@
                 android:title="模块Github仓库"/>
                 
             <item
-                android:id="@+id/menu_gitee"
-                android:title="模块Gitee仓库"/>
-                
-            <item
                 android:id="@+id/menu_exit"
                 android:title="退出模块"/>
         </menu>

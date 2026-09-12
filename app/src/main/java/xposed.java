@@ -284,7 +284,7 @@ public class xposed implements IXposedHookLoadPackage {
 
 				// 识别快对版本，选择对应的 Hook 目标
 				spec = selectSpec(context, classLoader);
-				XposedBridge.log("快怼: 已识别快对版本 " + spec.label);
+				XposedBridge.log("快怼+: 已识别快对版本 " + spec.label);
 
 				// 设置所有hook
 				setupAllHooks(context, classLoader);
@@ -2699,7 +2699,7 @@ public class xposed implements IXposedHookLoadPackage {
 			titleContainer.setPadding(pad24, pad24, pad24, pad24);
 
 			TextView title = new TextView(ctx);
-			title.setText("快怼设置");
+			title.setText("快怼+设置");
 			title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
 			title.setTextColor(Color.BLACK);
 			title.setTypeface(null, Typeface.BOLD);

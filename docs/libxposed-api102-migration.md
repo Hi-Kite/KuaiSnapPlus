@@ -1,6 +1,6 @@
 # 迁移到 libxposed API 102 方案
 
-> 本文档记录「快怼」从经典 XposedBridge API 迁移到 LSPosed 现代 API 的完整方案。
+> 本文档记录「快怼+」从经典 XposedBridge API 迁移到 LSPosed 现代 API 的完整方案。
 > 当前状态：**未迁移**，模块仍基于经典 API 82（详见 README「框架与兼容性」）。
 > 触发条件：LSPosed 移除对经典 API 的兼容层，或需要使用现代 API 的能力时。
 

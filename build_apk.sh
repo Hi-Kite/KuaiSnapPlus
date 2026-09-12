@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 快怼（KuaiSnap）命令行构建脚本
+# 快怼+（KuaiSnapPlus）命令行构建脚本
 #
 # 用途：本仓库没有提交 Gradle Wrapper，且模块代码量很小，
 #       因此提供一条不依赖 Gradle 的构建路径，方便快速出包。
@@ -103,7 +103,7 @@ PY
 
 echo "==> [6/6] 对齐并签名"
 "$BT/zipalign" -f -p 4 "$WORK/unsigned.apk" "$WORK/aligned.apk"
-APK="$OUT_DIR/KuaiSnap_${VERSION_NAME}.apk"
+APK="$OUT_DIR/KuaiSnapPlus_${VERSION_NAME}.apk"
 "$BT/apksigner" sign \
   --ks "$KS" --ks-key-alias "$KS_ALIAS" \
   --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" \
