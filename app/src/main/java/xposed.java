@@ -93,6 +93,8 @@ public class xposed implements IXposedHookLoadPackage {
 		int idVipBanner;
 		/** 讲解视频遮挡 WebView ID */
 		int idVideoMask;
+		/** 网页版图片浏览页的水印合成方法（方法名为 null 表示该版本没有水印逻辑） */
+		String mtdWatermark;
 	}
 
 	/** 双方版本一致的稳定类名 */
@@ -106,6 +108,7 @@ public class xposed implements IXposedHookLoadPackage {
 	private static final String CLS_SEARCH_SCAN = "com.kuaiduizuoye.scan.activity.scan.activity.SearchScanCodeResultActivity";
 	private static final String CLS_VIDEO_ACTIVITY = "com.kuaiduizuoye.scan.activity.video.sdk.VideoPlayerActivity";
 	private static final String CLS_MULTI_VIDEO_BEAN = "com.zybang.sdk.player.ui.model.MultipleVideoBean";
+	private static final String CLS_WEB_PICTURE_BROWSE = "com.kuaiduizuoye.scan.activity.common.CommonWebPictureBrowseActivity";
 
 	/** 快对 6.77.0 的适配配置 */
 	private static final VerSpec V6_77_0 = new VerSpec();
@@ -138,6 +141,8 @@ public class xposed implements IXposedHookLoadPackage {
 		V6_77_0.idVipBadge = 0x7f0910e7;
 		V6_77_0.idVipBanner = 0x7f091224;
 		V6_77_0.idVideoMask = 0x7f0912e3;
+		// 6.77.0 的图片浏览页没有水印逻辑，无需处理
+		V6_77_0.mtdWatermark = null;
 
 		// ------------------------------ 7.7.0 ------------------------------
 		// 关键类被重新混淆：database.a.i -> dh.i；newadvertisement.f.a -> aj.a
@@ -167,6 +172,8 @@ public class xposed implements IXposedHookLoadPackage {
 		V7_7_0.idVipBadge = 0x7f0910f7;
 		V7_7_0.idVipBanner = 0x7f091229;
 		V7_7_0.idVideoMask = 0x7f0912e4;
+		// 7.7.0 新增：网页版图片浏览页会把本地水印图平铺合成到显示用位图上
+		V7_7_0.mtdWatermark = "c2";
 	}
 
 	/** 当前生效的版本配置，默认按最新版处理 */
@@ -345,6 +352,11 @@ public class xposed implements IXposedHookLoadPackage {
 			// 解锁讲解视频
 			if (getBooleanSetting(context, "enable_video_explanation", false)) {
 				setupVideoExplanationHooks(classLoader);
+			}
+
+			// 无水印查看（仅影响网页版图片浏览页的显示，不影响保存的图片）
+			if (getBooleanSetting(context, "remove_watermark", true)) {
+				setupWatermarkHooks(classLoader);
 			}
 
 			// 组件屏蔽相关hook
@@ -2474,6 +2486,33 @@ public class xposed implements IXposedHookLoadPackage {
 		}
 	}
 
+	/**
+	 * 去除图片水印。
+	 * 快对 7.7.0 起，网页版图片浏览页（CommonWebPictureBrowseActivity）在
+	 * needWatermark 为真时，会把本地水印图（drawable）按 800dp×500dp 网格、
+	 * 奇偶行错位、每个旋转 -30° 平铺合成到显示用的位图上。
+	 * 这里直接返回原图，跳过整个平铺绘制过程。
+	 */
+	private void setupWatermarkHooks(ClassLoader classLoader) {
+		try {
+			if (spec.mtdWatermark == null) {
+				XposedBridge.log("图片水印Hook: 快对 " + spec.label + " 无图片水印逻辑，跳过");
+				return;
+			}
+			XposedHelpers.findAndHookMethod(CLS_WEB_PICTURE_BROWSE, classLoader, spec.mtdWatermark,
+					Bitmap.class, new XC_MethodHook() {
+						@Override
+						protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+							// 直接把原图返回，不再合成水印
+							param.setResult(param.args[0]);
+						}
+					});
+			XposedBridge.log("图片水印Hook设置成功");
+		} catch (Throwable t) {
+			XposedBridge.log("图片水印Hook设置失败: " + t);
+		}
+	}
+
 	private void setupScreenCaptureHooks(ClassLoader classLoader) {
 		try {
 			// hook⑩ - 解除截/录屏限制
@@ -2740,6 +2779,8 @@ public class xposed implements IXposedHookLoadPackage {
 			// 独立的设置项
 			addCustomSwitch(contentContainer, ctx, "解锁会员", "模拟VIP状态，解锁本地会员及某些功能", "enable_vip", true);
 			addCustomSwitch(contentContainer, ctx, "图片保存", "通过解密函数绕过保存解析图片至相册限制", "enable_image_decrypt", true);
+			addCustomSwitch(contentContainer, ctx, "无水印查看", "仅去除网页浏览图片时的平铺水印，不影响保存下来的图片（快对 7.7.0 起才有该水印）",
+					"remove_watermark", true);
 			addCustomSwitch(contentContainer, ctx, "解锁高清内容", "解锁解析图片高清内容查看", "enable_hd", true);
 			addCustomSwitch(contentContainer, ctx, "解锁横屏旋转", "解锁解析页面横屏旋转功能", "enable_rotate", true);
 			addCustomSwitch(contentContainer, ctx, "会员金标", "显示会员金标", "enable_vip_badge", true);
