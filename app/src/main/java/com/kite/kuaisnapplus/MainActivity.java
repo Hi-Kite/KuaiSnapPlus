@@ -31,8 +31,8 @@ public class MainActivity extends Activity {
 	public static final String KEY_HIDE_ICON = "hide_app_icon";
 
 	// 更新清单与本项目地址（均指向当前仓库）
-	private static final String UPDATE_URL = "https://raw.githubusercontent.com/Hi-Kite/KuaiSnap/main/update.json";
-	private static final String GITHUB_URL = "https://github.com/Hi-Kite/KuaiSnap";
+	private static final String UPDATE_URL = "https://raw.githubusercontent.com/Hi-Kite/KuaiSnapPlus/main/update.json";
+	private static final String GITHUB_URL = "https://github.com/Hi-Kite/KuaiSnapPlus";
 	private static final String WEBSITE_URL = "https://hi-kite.github.io";
 
 	@Override

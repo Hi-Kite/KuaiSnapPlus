@@ -78,7 +78,7 @@
 
 | 渠道 | 地址 | 类型 |
 |---|---|---|
-| GitHub Releases | [Hi-Kite/KuaiSnap/releases](https://github.com/Hi-Kite/KuaiSnap/releases) | 正式版 |
+| GitHub Releases | [Hi-Kite/KuaiSnapPlus/releases](https://github.com/Hi-Kite/KuaiSnapPlus/releases) | 正式版 |
 
 本模块发布地址仅限于上述所列出的地址，从其他非正规渠道下载到的版本或对您造成任何影响均与我们无关。
 
@@ -108,7 +108,7 @@
 
 ## 支持我们
 
-问题反馈：[GitHub Issues](https://github.com/Hi-Kite/KuaiSnap/issues)
+问题反馈：[GitHub Issues](https://github.com/Hi-Kite/KuaiSnapPlus/issues)
 
 如果这个项目对你有帮助，欢迎 Star 支持。
 
