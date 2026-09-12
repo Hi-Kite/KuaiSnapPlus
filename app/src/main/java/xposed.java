@@ -223,9 +223,9 @@ public class xposed implements IXposedHookLoadPackage {
 	public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam packageName) throws Throwable {
 
 		// 通过自己Hook自己进行激活校验
-		if (packageName.packageName.equals("com.jiguro.kuaisnap")) {
+		if (packageName.packageName.equals("com.kite.kuaisnapplus")) {
 			try {
-				Class<?> clazz = packageName.classLoader.loadClass("com.jiguro.kuaisnap.ModuleStatus"); // 加载校验类
+				Class<?> clazz = packageName.classLoader.loadClass("com.kite.kuaisnapplus.ModuleStatus"); // 加载校验类
 				java.lang.reflect.Field field = clazz.getDeclaredField("activated");
 				field.setAccessible(true);
 				field.setBoolean(null, true);

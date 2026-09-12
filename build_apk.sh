@@ -26,8 +26,8 @@ VERSION_CODE="20260912"
 VERSION_NAME="1.3.0"
 
 # 签名配置：请替换为你自己的密钥
-KS="${KS:-keystore/kuaisnap-release.jks}"
-KS_ALIAS="${KS_ALIAS:-kuaisnap}"
+KS="${KS:-keystore/kuaisnapplus-release.jks}"
+KS_ALIAS="${KS_ALIAS:-kuaisnapplus}"
 KS_PASS="${KS_PASS:-KuaiSnap#2026Release}"
 
 OUT_DIR="dist"
@@ -64,7 +64,7 @@ javac -nowarn -encoding UTF-8 -source 8 -target 8 \
   -cp "$XPOSED_JAR" \
   -d "$WORK/classes" \
   $(find app/src/main/java -name '*.java') \
-  "$WORK/gen/com/jiguro/kuaisnap/R.java"
+  "$WORK/gen/com/kite/kuaisnapplus/R.java"
 
 echo "==> [4/6] 生成 classes.dex"
 "$BT/d8" --min-api 21 --lib "$ANDROID_JAR" --lib "$XPOSED_JAR" \

@@ -1,4 +1,4 @@
-package com.jiguro.kuaisnap;
+package com.kite.kuaisnapplus;
 
 import android.*;
 import android.app.*;

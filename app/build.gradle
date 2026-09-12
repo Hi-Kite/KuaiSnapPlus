@@ -5,7 +5,7 @@ android {
     buildToolsVersion "33.0.0"
     
     defaultConfig {
-        applicationId "com.jiguro.kuaisnap"
+        applicationId "com.kite.kuaisnapplus"
         minSdkVersion 21
         targetSdkVersion 26
         versionCode 20260912

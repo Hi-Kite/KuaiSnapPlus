@@ -1,4 +1,4 @@
-package com.jiguro.kuaisnap;
+package com.kite.kuaisnapplus;
 
 public class UpdateInfo {
     public String versionName;   // 线上最新版本

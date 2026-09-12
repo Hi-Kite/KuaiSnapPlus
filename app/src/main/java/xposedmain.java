@@ -17,8 +17,8 @@ import java.lang.reflect.Method;
 public class xposedmain implements IXposedHookLoadPackage {
 
     // ↓↓↓ 按实际改成你的 ↓↓↓
-    private final String modulePkg   = "com.jiguro.kuaisnap";   // 模块包名
-    private final String logicClass  = "com.jiguro.kuaisnap.xposed"; // 完整类名
+    private final String modulePkg   = "com.kite.kuaisnapplus";   // 模块包名
+    private final String logicClass  = "xposed"; // 入口类（位于默认包，非 com.kite.kuaisnapplus）
     private final String logicMethod = "handleLoadPackage";     // 入口方法
     // ↑↑↑ 按实际改成你的 ↑↑↑
 
