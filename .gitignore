@@ -17,3 +17,6 @@
 /build/
 /app/build/
 /local.properties
+
+# 旧手动构建流程的临时目录（已废弃，防止陈旧产物被误提交）
+/build_tmp/
