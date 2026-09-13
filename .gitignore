@@ -10,7 +10,6 @@
 /keystore/
 /dist/
 *.idsig
-/build_tmp/
 
 # Gradle / Android 构建产物
 /.gradle/

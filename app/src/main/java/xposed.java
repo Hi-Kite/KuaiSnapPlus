@@ -2625,67 +2625,25 @@ public class xposed implements IXposedHookLoadPackage {
 		return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, ctx.getResources().getDisplayMetrics());
 	}
 
-	// 读 1/0 的小工具
-	private int readToastFlag(File f) {
-		if (!f.exists())
-			return 0;
-		FileInputStream fis = null;
-		try {
-			fis = new FileInputStream(f);
-			byte[] buf = new byte[1];
-			if (fis.read(buf) == 1) {
-				String s = new String(buf);
-				return "1".equals(s) ? 1 : 0;
-			}
-		} catch (Exception ignored) {
-		} finally {
-			if (fis != null)
-				try {
-					fis.close();
-				} catch (IOException ignored) {
-				}
-		}
-		return 0;
-	}
-
+	/**
+	 * 显示启动提示。
+	 *
+	 * 是否显示由模块设置 block_startup_message 决定（经 XSharedPreferences 读取）；
+	 * 旧版本基于 .Kuaisnap/toast_config 公共文件的开关已废弃并移除。
+	 */
 	private void jiguromessage(String message) {
-		boolean shouldShow = true;
-
-		// 先检查私有目录
-		File privateConfig = new File(Context.getExternalFilesDir(null), ".Kuaisnap/toast_config");
-		if (privateConfig.exists()) {
-			if (readToastFlag(privateConfig) == 1) {
-				shouldShow = false;
-			}
+		if (Context == null || Context.isFinishing()) {
+			return;
 		}
-
-		// 如果私有目录没有禁用，再检查公共目录
-		if (shouldShow) {
-			File publicConfig = new File("/storage/emulated/0/.Kuaisnap/toast_config");
-			if (publicConfig.exists() && readToastFlag(publicConfig) == 1) {
-				shouldShow = false;
-			}
+		if (getBooleanSetting(Context, "block_startup_message", false)) {
+			XposedBridge.log("启动提示已被设置屏蔽: " + message);
+			return;
 		}
-
-		// 检查设置中的屏蔽选项
-		if (shouldShow && Context != null && !Context.isFinishing()) {
-			boolean blockStartupMessage = getBooleanSetting(Context, "block_startup_message", false);
-			if (blockStartupMessage) {
-				shouldShow = false;
-				XposedBridge.log("启动提示已被屏蔽: " + message);
-			}
-		}
-
-		// 显示提示
-		if (shouldShow) {
-			try {
-				Toast.makeText(Context, message, Toast.LENGTH_SHORT).show();
-				XposedBridge.log("显示启动提示: " + message);
-			} catch (Exception e) {
-				XposedBridge.log("提示异常:" + e);
-			}
-		} else {
-			XposedBridge.log("启动提示已被配置文件屏蔽");
+		try {
+			Toast.makeText(Context, message, Toast.LENGTH_SHORT).show();
+			XposedBridge.log("显示启动提示: " + message);
+		} catch (Exception e) {
+			XposedBridge.log("提示异常:" + e);
 		}
 	}
 
