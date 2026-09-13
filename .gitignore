@@ -2,6 +2,9 @@
 /7.7.0.apk
 /6.77.0.apk
 
+# 本地构建出的发布包（发布走 GitHub Releases，不进版本库）
+/KuaiSnapPlus_*.apk
+
 # 逆向分析与构建产物（本地使用，不提交）
 /re/
 /.tools/
