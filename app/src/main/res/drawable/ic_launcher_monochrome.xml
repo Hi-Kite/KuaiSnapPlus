@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 对勾：内容外接圆直径 66dp，位于自适应图标安全区内 -->
+    <path
+        android:pathData="M33.262,49.211 L46.223,62.171 L74.738,33.657"
+        android:strokeColor="#000000"
+        android:strokeWidth="7.78"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- 基准线：次级元素，压低不透明度让出主焦点 -->
+    <path
+        android:pathData="M33.262,75.997 L63.505,75.997"
+        android:strokeColor="#000000"
+        android:strokeWidth="4.75"
+        android:strokeAlpha="0.35"
+        android:strokeLineCap="round" />
+</vector>
