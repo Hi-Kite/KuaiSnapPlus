@@ -83,17 +83,6 @@ public class MainActivity extends Activity {
 			});
 		}
 
-		// 设置头像点击事件
-		ImageView ivAvatar = findViewById(R.id.iv_avatar);
-		if (ivAvatar != null) {
-			ivAvatar.setOnClickListener(new View.OnClickListener() {
-				@Override
-				public void onClick(View v) {
-					Toast.makeText(MainActivity.this, "戳我头干啥？你找死啊！", Toast.LENGTH_SHORT).show();
-				}
-			});
-		}
-
 		// 设置软件图标点击事件
 		setupAppIconClicks();
 

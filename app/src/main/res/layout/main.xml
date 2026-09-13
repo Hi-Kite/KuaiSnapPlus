@@ -433,18 +433,6 @@
             android:clickable="true"
             android:focusable="true">
 
-            <!-- 作者头像：添加水波纹 -->
-            <ImageView
-                android:id="@+id/iv_avatar"
-                android:layout_width="100dp"
-                android:layout_height="100dp"
-                android:src="@drawable/author_avatar"
-                android:scaleType="centerCrop"
-                android:background="@drawable/circle_background"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?android:attr/selectableItemBackgroundBorderless"/>
-
             <!-- 作者名字 -->
             <TextView
                 android:layout_width="wrap_content"
