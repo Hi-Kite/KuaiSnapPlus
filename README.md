@@ -45,7 +45,7 @@
 
 完整开关见模块主页 —— 所有设置集中在**一个页面**内，按功能分组为若干卡片，改完即写入模块自身的设置，**重启作用域软件后生效**。
 
-设置界面由 [Miuix](https://github.com/compose-miuix-ui/miuix)（Apache-2.0）构建，视觉参考 KernelSU Manager 的卡片式分组列表；Android 12+ 自动跟随壁纸取色（Material You），并支持深色模式。
+设置界面由 [Miuix](https://github.com/compose-miuix-ui/miuix)（Apache-2.0）构建，视觉参考 KernelSU Manager 的卡片式分组列表。默认使用 Miuix 内置的 MIUI / HyperOS 风格配色，也提供浅色 / 深色，以及 9 种 Material 3 调色盘（可搭配 9 种主题色种子，或从系统壁纸取色）。
 
 ## 架构说明
 
