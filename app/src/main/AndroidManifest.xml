@@ -1,19 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.kite.kuaisnapplus" >
-    
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-android:allowBackup="true"
+        android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme"
-        android:resizeableActivity="true">
-        
-        <!-- 主活动 -->
+        android:resizeableActivity="true"
+        android:theme="@style/Theme.KuaiSnapPlus">
+
+        <!-- 主界面（单页设置），同时作为 Xposed 的「模块设置」入口 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -23,8 +20,8 @@ android:allowBackup="true"
                 <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS" />
             </intent-filter>
         </activity>
-        
-        <!-- 桌面图标别名 - 仅用于桌面启动 -->
+
+        <!-- 桌面图标别名：隐藏图标时禁用它 -->
         <activity-alias
             android:name=".LauncherAlias"
             android:targetActivity=".MainActivity"
@@ -32,36 +29,31 @@ android:allowBackup="true"
             android:icon="@drawable/ic_launcher"
             android:label="@string/app_name"
             android:enabled="true">
-            <!-- 桌面启动器专用入口 -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
-        
-        <!-- 设置活动 -->
-        <activity
-            android:name=".SettingsActivity"
-            android:exported="true"
-            android:label="模块设置"
-            android:theme="@style/AppTheme.NoActionBar">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-  
+
         <meta-data
-			android:name="xposedmodule"
-			android:value="true"/>
-		<meta-data
-			android:name="xposeddescription"
-			android:value="对快对进行一些优化和破解"/>
-		<meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="对快对进行一些优化和破解" />
+        <meta-data
             android:name="xposedscope"
             android:resource="@array/xposed_scope" />
-		<meta-data
+        <meta-data
             android:name="xposedminversion"
-			android:value="54"/>
+            android:value="54" />
+        <!--
+          启用 LSPosed 的新版 XSharedPreferences：
+          模块 App 可用 MODE_WORLD_READABLE 写入设置，Hook 侧通过
+          XSharedPreferences(包名, 文件名) 读取，无需存储权限。
+        -->
+        <meta-data
+            android:name="xposedsharedprefs"
+            android:value="true" />
     </application>
 </manifest>

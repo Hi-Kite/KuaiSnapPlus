@@ -11,3 +11,10 @@
 /dist/
 *.idsig
 /build_tmp/
+
+# Gradle / Android 构建产物
+/.gradle/
+/.kotlin/
+/build/
+/app/build/
+/local.properties

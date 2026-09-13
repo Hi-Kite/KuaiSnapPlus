@@ -43,7 +43,17 @@
 - 无水印查看（去除网页浏览图片时的平铺水印）
 - 禁用传感器、解锁讲解视频（实验）等
 
-完整开关与说明见模块内 **快对 设置页面 → 快怼+设置**。
+完整开关见模块主页 —— 所有设置集中在**一个页面**内，按功能分组为若干卡片，改完即写入模块自身的设置，**重启作用域软件后生效**。
+
+设置界面由 [Miuix](https://github.com/compose-miuix-ui/miuix)（Apache-2.0）构建，视觉参考 KernelSU Manager 的卡片式分组列表；Android 12+ 自动跟随壁纸取色（Material You），并支持深色模式。
+
+## 架构说明
+
+- **Hook 侧**（`app/src/main/java/xposed.java`）基于经典 Xposed API，只做 Hook，**不再向快对注入任何设置界面**
+- **设置界面**运行在模块 App 自己的进程里，因此可以使用任意 UI 库，也不会与快对的界面产生冲突
+- 设置通过 **XSharedPreferences** 跨进程传递：模块 App 以 `MODE_WORLD_READABLE` 写入，Hook 侧用 `XSharedPreferences(包名, 文件名)` 读取，**无需存储权限**
+  - 依赖 `AndroidManifest.xml` 中的 `xposedsharedprefs` 元数据（未使用提高 `xposedminversion` 的方式，以免在部分框架上导致模块不加载）
+  - Hook 侧对设置做了内存缓存，因此**改动需重启作用域软件生效**
 
 ## 框架与兼容性
 
@@ -54,12 +64,35 @@
 | API 体系 | 经典 XposedBridge（`de.robv.android.xposed`） |
 | API 版本 | **82**（该体系的最终版本） |
 | 入口方式 | `assets/xposed_init` |
-| 模块元数据 | `AndroidManifest.xml` 中的 `xposedmodule` / `xposeddescription` / `xposedscope` / `xposedminversion` |
+| 模块元数据 | `AndroidManifest.xml` 中的 `xposedmodule` / `xposeddescription` / `xposedscope` / `xposedminversion` / `xposedsharedprefs` |
 | 最低框架 API | 54 |
+| 最低 Android | **6.0（API 23）**（Miuix 要求） |
 
 **兼容的框架**：LSPosed、EdXposed、经典 Xposed、LSPatch（凡支持经典 API 的框架均可加载）。
 
 **关于 LSPosed 的现代 API**：LSPosed 现已推出第二代 API —— **libxposed API**（`io.github.libxposed.api`，当前版本 **102**），与经典 API 是两套并行体系。本模块目前**未使用**该 API；LSPosed 2.x 仍兼容基于经典 API 的模块，因此本模块可正常运行。若日后框架移除经典 API 兼容层，本模块需要迁移，方案见 [`docs/libxposed-api102-migration.md`](docs/libxposed-api102-migration.md)。
+
+## 构建
+
+环境要求：
+
+| 依赖 | 版本 | 说明 |
+|---|---|---|
+| JDK | **21** | AGP 9 要求，source/target 亦为 21 |
+| Android SDK Platform | **37** | Miuix 的 AAR 声明 `minCompileSdk=37`，必须用 37 编译 |
+| Android SDK Build-Tools | **37.0.0** | |
+| Gradle | 9.5.1 | 已附带 wrapper，无需单独安装 |
+| AGP / Kotlin | 9.2.1 / 2.4.0 | |
+
+```bash
+export ANDROID_HOME=/path/to/android-sdk
+./build_apk.sh                  # 等价于 ./gradlew :app:assembleRelease
+```
+
+产物位于 `app/build/outputs/apk/release/`。
+
+> 注意：AGP 9 起内置 Kotlin 支持，**不要**再应用 `org.jetbrains.kotlin.android` 插件。
+
 
 ## 开始使用
 

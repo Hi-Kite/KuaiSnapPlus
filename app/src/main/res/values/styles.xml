@@ -1,40 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- 应用主题 -->
-    <style name="AppTheme" parent="@android:style/Theme.Material.Light.DarkActionBar">
-        <item name="android:actionBarStyle">@style/CustomActionBarStyle</item>
-        <item name="android:textColorPrimary">@color/action_bar_title_color</item>
-        <item name="android:actionMenuTextColor">@color/action_bar_title_color</item>
-        <item name="android:actionMenuTextAppearance">@style/MenuTextAppearance</item>
-        <item name="android:windowActionModeOverlay">true</item>
+    <!--
+      Compose 应用：宿主主题只需提供无 ActionBar 的窗口，
+      实际配色（含动态取色、深色模式）由 Miuix 在 Compose 层处理。
+    -->
+    <style name="Theme.KuaiSnapPlus" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FFF7F7F7</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
-
-    <!-- 菜单文本样式 -->
-    <style name="MenuTextAppearance" parent="@android:style/TextAppearance.Material">
-        <item name="android:textColor">@color/action_bar_title_color</item>
-        <item name="android:textSize">14sp</item>
-    </style>
-
-
-    <!-- ActionBar样式 -->
-    <style name="CustomActionBarStyle" parent="@android:style/Widget.Material.Light.ActionBar">
-        <item name="android:background">@color/action_bar_background</item>
-        <item name="android:titleTextStyle">@style/CustomTitleTextStyle</item>
-    </style>
-
-    <!-- 无ActionBar主题 -->
-    <style name="AppTheme.NoActionBar">
-        <item name="android:windowActionBar">false</item>
-        <item name="android:windowNoTitle">true</item>
-    </style>
-
-    <!-- 标题文本样式 -->
-    <style name="CustomTitleTextStyle">
-        <item name="android:textColor">@color/action_bar_title_color</item>
-        <item name="android:textSize">18sp</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-
 
 </resources>

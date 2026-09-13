@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 第一层：复用项目原有卡片背景（保持圆角、阴影等样式） -->
-    <item android:drawable="@drawable/card_background"/>
-    <!-- 第二层：Android原生水波纹效果（点击时触发，贴合卡片边界） -->
-    <item android:drawable="?android:attr/selectableItemBackground"/>
-</layer-list>

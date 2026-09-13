@@ -103,7 +103,6 @@ public class xposed implements IXposedHookLoadPackage {
 	private static final String CLS_MINE_LOGIN_VIEW = "com.kuaiduizuoye.scan.activity.mine.widget.MineUserLoginView";
 	private static final String CLS_MINE_AI_LOGIN_VIEW = "com.kuaiduizuoye.scan.activity.mine.widget.MineAiUserLoginView";
 	private static final String CLS_MAIN_ACTIVITY = "com.kuaiduizuoye.scan.activity.main.activity.MainActivity";
-	private static final String CLS_SETTINGS_ACTIVITY = "com.kuaiduizuoye.scan.activity.common.CommonCacheHybridActivity";
 	private static final String CLS_BOOK_BROWSE = "com.kuaiduizuoye.scan.activity.scan.activity.BookCompleteDetailsPictureBrowseActivity";
 	private static final String CLS_SEARCH_SCAN = "com.kuaiduizuoye.scan.activity.scan.activity.SearchScanCodeResultActivity";
 	private static final String CLS_VIDEO_ACTIVITY = "com.kuaiduizuoye.scan.activity.video.sdk.VideoPlayerActivity";
@@ -256,31 +255,6 @@ public class xposed implements IXposedHookLoadPackage {
 						}
 					});
 				}
-
-				// Hook 设置页弹窗
-				XposedHelpers.findAndHookMethod(CLS_SETTINGS_ACTIVITY,
-						classLoader, "onCreate", Bundle.class, new XC_MethodHook() {
-							@Override
-							protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-								final Activity activity = (Activity) param.thisObject;
-
-								new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-									@Override
-									public void run() {
-										try {
-											if (activity.isFinishing() || activity.isDestroyed()) {
-												return;
-											}
-											if (isSettingsPage(activity)) {
-												showKuaiSnapSettingsDialog(activity);
-											}
-										} catch (Exception e) {
-											XposedBridge.log("显示设置对话框异常: " + e.getMessage());
-										}
-									}
-								}, 1000);
-							}
-						});
 
 				// 识别快对版本，选择对应的 Hook 目标
 				spec = selectSpec(context, classLoader);
@@ -2319,28 +2293,73 @@ public class xposed implements IXposedHookLoadPackage {
 		fos.close();
 	}
 
-	// 使用 SharedPreferences 读取布尔值设置
-	private boolean getBooleanSetting(Context context, String key, boolean defaultValue) {
+	// ==================== 设置读取（模块 App 写入，Hook 侧读取）====================
+
+	/** 模块包名：设置由模块 App 的 SharedPreferences 提供 */
+	private static final String MODULE_PACKAGE = "com.kite.kuaisnapplus";
+
+	private static XSharedPreferences sSharedPrefs;
+	private static boolean sPrefsInited = false;
+	private static final Map<String, Boolean> sSettingCache = new HashMap<String, Boolean>();
+
+	/**
+	 * 初始化跨进程设置（XSharedPreferences）。
+	 * 依赖 Manifest 中的 xposedsharedprefs 元数据；模块未激活或不受支持时保持为 null，
+	 * 由 getBooleanSetting 回退到默认值。
+	 */
+	private static void initSharedPrefs() {
+		if (sPrefsInited) {
+			return;
+		}
+		sPrefsInited = true;
 		try {
-			SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-			return prefs.getBoolean(key, defaultValue);
-		} catch (Exception e) {
-			XposedBridge.log("读取设置失败 " + key + ": " + e.getMessage());
-			return defaultValue;
+			XSharedPreferences prefs = new XSharedPreferences(MODULE_PACKAGE, PREFS_NAME);
+			prefs.reload();
+			// API 82 没有 isReadable()，用文件可读性判断（读不到时 getBoolean 会返回默认值）
+			File prefsFile = prefs.getFile();
+			if (prefsFile != null && prefsFile.canRead()) {
+				sSharedPrefs = prefs;
+				XposedBridge.log("快怼+: 已读取模块设置");
+			} else {
+				XposedBridge.log("快怼+: 模块设置不可读，将使用默认值");
+			}
+		} catch (Throwable t) {
+			XposedBridge.log("快怼+: 初始化模块设置失败 " + t);
 		}
 	}
 
-	// 使用 SharedPreferences 保存布尔值设置
-	private void putBooleanSetting(Context context, String key, boolean value) {
-		try {
-			SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-			SharedPreferences.Editor editor = prefs.edit();
-			editor.putBoolean(key, value);
-			editor.apply();
-			XposedBridge.log("保存设置成功 " + key + ": " + value);
-		} catch (Exception e) {
-			XposedBridge.log("保存设置失败 " + key + ": " + e.getMessage());
+	/**
+	 * 读取布尔设置。
+	 *
+	 * 值来自模块 App 的 SharedPreferences（经 XSharedPreferences 跨进程读取），
+	 * 读不到时回退到目标应用内的旧设置（兼容从旧版本升级的用户），最后回退默认值。
+	 * 结果做内存缓存：设置改动需重启作用域软件后生效。
+	 */
+	private boolean getBooleanSetting(Context context, String key, boolean defaultValue) {
+		Boolean cached = sSettingCache.get(key);
+		if (cached != null) {
+			return cached.booleanValue();
 		}
+
+		boolean value = defaultValue;
+		initSharedPrefs();
+		if (sSharedPrefs != null) {
+			try {
+				value = sSharedPrefs.getBoolean(key, defaultValue);
+			} catch (Throwable t) {
+				XposedBridge.log("读取模块设置失败 " + key + ": " + t);
+			}
+		} else if (context != null) {
+			try {
+				value = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+						.getBoolean(key, defaultValue);
+			} catch (Throwable t) {
+				XposedBridge.log("读取旧设置失败 " + key + ": " + t);
+			}
+		}
+
+		sSettingCache.put(key, Boolean.valueOf(value));
+		return value;
 	}
 
 	private void setupVipHooks(ClassLoader classLoader) {
@@ -2532,65 +2551,10 @@ public class xposed implements IXposedHookLoadPackage {
 	}
 
 	// 判断是否为设置页面的方法
-	private boolean isSettingsPage(Activity activity) {
-		try {
-			if (activity == null || activity.isFinishing()) {
-				return false;
-			}
-
-			WebView webView = findWebView(activity);
-			if (webView != null) {
-				String title = webView.getTitle();
-				if (title != null) {
-					// 精确匹配标题
-					if (title.equals("设置") || title.equals("Settings")) {
-						XposedBridge.log("检测到设置页面，标题: " + title);
-						return true;
-					}
-				}
-			}
-		} catch (Exception e) {
-			XposedBridge.log("判断设置页面时出错: " + e.getMessage());
-		}
-		return false;
-	}
 	
 	// 查找Activity中的WebView
-	private WebView findWebView(Activity activity) {
-		try {
-			if (activity == null || activity.isFinishing()) {
-				return null;
-			}
-
-			View decorView = activity.getWindow().getDecorView();
-			if (decorView instanceof ViewGroup) {
-				return findWebViewInViewGroup((ViewGroup) decorView);
-			}
-		} catch (Exception e) {
-			XposedBridge.log("查找WebView时出错: " + e.getMessage());
-		}
-		return null;
-	}
 
 	// 递归查找WebView
-	private WebView findWebViewInViewGroup(ViewGroup viewGroup) {
-		try {
-			for (int i = 0; i < viewGroup.getChildCount(); i++) {
-				View child = viewGroup.getChildAt(i);
-				if (child instanceof WebView) {
-					return (WebView) child;
-				} else if (child instanceof ViewGroup) {
-					WebView webView = findWebViewInViewGroup((ViewGroup) child);
-					if (webView != null) {
-						return webView;
-					}
-				}
-			}
-		} catch (Exception e) {
-			XposedBridge.log("递归查找WebView时出错: " + e.getMessage());
-		}
-		return null;
-	}
 
 	// 讲解视频Hook
 	private void setupVideoExplanationHooks(ClassLoader classLoader) {
@@ -2654,290 +2618,8 @@ public class xposed implements IXposedHookLoadPackage {
 		}
 	}
 
-	private void showKuaiSnapSettingsDialog(final Activity activity) {
-		try {
-			if (activity == null || activity.isFinishing()) {
-				return;
-			}
 
-			final Context ctx = activity;
 
-			// 创建 Dialog
-			final Dialog dialog = new Dialog(ctx);
-			dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-			dialog.setCancelable(true);
-
-			// 设置窗口属性
-			Window window = dialog.getWindow();
-			if (window != null) {
-				window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-
-				// 设置对话框的宽度为屏幕宽度的 90%，高度自适应但限制最大高度
-				DisplayMetrics displayMetrics = new DisplayMetrics();
-				activity.getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-				int dialogWidth = (int) (displayMetrics.widthPixels * 0.9);
-				window.setLayout(dialogWidth, ViewGroup.LayoutParams.WRAP_CONTENT);
-				window.setGravity(Gravity.CENTER);
-				window.setWindowAnimations(android.R.style.Animation_Dialog);
-			}
-
-			// 创建主容器，使用垂直LinearLayout包含标题、ScrollView和按钮
-			LinearLayout mainContainer = new LinearLayout(ctx);
-			mainContainer.setOrientation(LinearLayout.VERTICAL);
-			mainContainer.setPadding(dp(ctx, 20), dp(ctx, 0), dp(ctx, 20), dp(ctx, 20));
-
-			// 为主容器设置圆角背景
-			GradientDrawable mainBg = new GradientDrawable();
-			mainBg.setColor(Color.WHITE);
-			mainBg.setCornerRadius(dp(ctx, 12));
-			mainContainer.setBackground(mainBg);
-
-			// 创建标题容器，固定在顶部不滚动
-			LinearLayout titleContainer = new LinearLayout(ctx);
-			titleContainer.setOrientation(LinearLayout.VERTICAL);
-			int pad24 = dp(ctx, 24);
-			titleContainer.setPadding(pad24, pad24, pad24, pad24);
-
-			TextView title = new TextView(ctx);
-			title.setText("快怼+设置");
-			title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
-			title.setTextColor(Color.BLACK);
-			title.setTypeface(null, Typeface.BOLD);
-			title.setGravity(Gravity.CENTER);
-			LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
-					LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-			titleContainer.addView(title, titleParams);
-
-			// 添加标题下方的分割线
-			View titleDivider = new View(ctx);
-			titleDivider.setBackgroundColor(Color.parseColor("#EEEEEE"));
-			LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
-					LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 1));
-			dividerParams.topMargin = dp(ctx, 16);
-			dividerParams.bottomMargin = dp(ctx, 8);
-			titleContainer.addView(titleDivider, dividerParams);
-
-			// 创建 ScrollView 并限制最大高度
-			ScrollView scrollRoot = new ScrollView(ctx) {
-				@Override
-				protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-					// 限制最大高度为屏幕高度的 50%，为标题和按钮留出空间
-					DisplayMetrics displayMetrics = ctx.getResources().getDisplayMetrics();
-					int maxHeight = (int) (displayMetrics.heightPixels * 0.5);
-					int newHeightMeasureSpec = MeasureSpec.makeMeasureSpec(maxHeight, MeasureSpec.AT_MOST);
-					super.onMeasure(widthMeasureSpec, newHeightMeasureSpec);
-				}
-
-				@Override
-				protected void onDraw(Canvas canvas) {
-					// 自定义绘制圆角滚动条
-					super.onDraw(canvas);
-				}
-			};
-			scrollRoot.setFillViewport(true);
-			scrollRoot.setOverScrollMode(ScrollView.OVER_SCROLL_NEVER); // 禁用过度滚动效果
-
-			// 自定义滚动条样式
-			try {
-				// 使用反射设置滚动条样式
-				Field field = View.class.getDeclaredField("mScrollCache");
-				field.setAccessible(true);
-				Object scrollCache = field.get(scrollRoot);
-				if (scrollCache != null) {
-					Field scrollBarField = scrollCache.getClass().getDeclaredField("scrollBar");
-					scrollBarField.setAccessible(true);
-					Object scrollBar = scrollBarField.get(scrollCache);
-					if (scrollBar != null) {
-						Method method = scrollBar.getClass().getMethod("setVerticalThumbDrawable", Drawable.class);
-
-						// 创建圆角滚动条Drawable
-						GradientDrawable thumbDrawable = new GradientDrawable();
-						thumbDrawable.setColor(Color.parseColor("#FFC107"));
-						thumbDrawable.setCornerRadius(dp(ctx, 10));
-						thumbDrawable.setSize(dp(ctx, 4), dp(ctx, 40));
-
-						method.invoke(scrollBar, thumbDrawable);
-					}
-				}
-			} catch (Exception e) {
-				// 如果反射失败，使用默认样式
-				XposedBridge.log("设置自定义滚动条失败: " + e.getMessage());
-			}
-
-			// 为ScrollView设置布局参数，权重为1，使其占据剩余空间
-			LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-					LinearLayout.LayoutParams.MATCH_PARENT, 0, // 高度设为0，使用权重
-					1 // 权重为1，占据剩余空间
-			);
-			scrollRoot.setLayoutParams(scrollParams);
-
-			// 创建ScrollView内部的内容容器
-			LinearLayout contentContainer = new LinearLayout(ctx);
-			contentContainer.setOrientation(LinearLayout.VERTICAL);
-			contentContainer.setPadding(pad24, 0, pad24, pad24); // 上边距为0，因为标题已经单独处理
-
-			// 独立的设置项
-			addCustomSwitch(contentContainer, ctx, "解锁会员", "模拟VIP状态，解锁本地会员及某些功能", "enable_vip", true);
-			addCustomSwitch(contentContainer, ctx, "图片保存", "通过解密函数绕过保存解析图片至相册限制", "enable_image_decrypt", true);
-			addCustomSwitch(contentContainer, ctx, "无水印查看", "仅去除网页浏览图片时的平铺水印，不影响保存下来的图片（快对 7.7.0 起才有该水印）",
-					"remove_watermark", true);
-			addCustomSwitch(contentContainer, ctx, "解锁高清内容", "解锁解析图片高清内容查看", "enable_hd", true);
-			addCustomSwitch(contentContainer, ctx, "解锁横屏旋转", "解锁解析页面横屏旋转功能", "enable_rotate", true);
-			addCustomSwitch(contentContainer, ctx, "会员金标", "显示会员金标", "enable_vip_badge", true);
-			addCustomSwitch(contentContainer, ctx, "去除截屏限制", "去除截屏和录屏限制", "enable_screen_capture", true);
-			addCustomSwitch(contentContainer, ctx, "纯净快对", "拦截所有广告，去他妈的广告", "enable_ad_block", true);
-			addCustomSwitch(contentContainer, ctx, "我不是新人", "屏蔽我的页面顶部新人优惠广告", "block_new_user_banner", false);
-			addCustomSwitch(contentContainer, ctx, "去除会员Banner", "屏蔽\"我不是新人\"开启后主页的会员Banner", "remove_vip_banner",
-					false);
-			addCustomSwitch(contentContainer, ctx, "禁用传感器", "禁用陀螺仪和加速度传感器", "enable_sensor_block", false);
-			addCustomSwitch(contentContainer, ctx, "红包走开", "去除我的页面红包推广", "block_red_packet", false);
-			addCustomSwitch(contentContainer, ctx, "屏蔽提示", "去除解析页面上方的\"勤动脑，多思考\"横条", "block_notice_bar", false);
-			addCustomSwitch(contentContainer, ctx, "本大爷是VIP", "去除VIP专属功能右上角角标", "block_vip_badge", true);
-			addCustomSwitch(contentContainer, ctx, "不要收藏", "屏蔽每次退出解析页面时烦人的收藏弹窗", "block_collection_dialog", false);
-			addCustomSwitch(contentContainer, ctx, "解锁讲解视频(实验)", "延长拍照搜题后的讲解视频观看时间，不能真正解锁视频，正在开发，仅供娱乐",
-					"enable_video_explanation", false);
-			addCustomSwitch(contentContainer, ctx, "屏蔽启动提示", "屏蔽软件启动时的领域展开提示", "block_startup_message", false);
-
-			// 将内容容器添加到ScrollView
-			scrollRoot.addView(contentContainer, new ScrollView.LayoutParams(ScrollView.LayoutParams.MATCH_PARENT,
-					ScrollView.LayoutParams.WRAP_CONTENT));
-
-			// 创建确定按钮容器，固定在底部
-			LinearLayout buttonContainer = new LinearLayout(ctx);
-			buttonContainer.setOrientation(LinearLayout.VERTICAL);
-			buttonContainer.setPadding(pad24, dp(ctx, 16), pad24, 0); // 上边距16dp，其他边距与内容一致
-
-			Button ok = new Button(ctx);
-			ok.setText("确定");
-			ok.setTextColor(Color.WHITE);
-			ok.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-			ok.setTypeface(null, Typeface.BOLD);
-			GradientDrawable btnBg = new GradientDrawable();
-			btnBg.setColor(Color.parseColor("#FFC107"));
-			btnBg.setCornerRadius(dp(ctx, 8));
-			ok.setBackground(btnBg);
-			LinearLayout.LayoutParams okLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
-					dp(ctx, 48));
-			buttonContainer.addView(ok, okLp);
-
-			// 将标题、ScrollView和按钮容器添加到主容器
-			mainContainer.addView(titleContainer);
-			mainContainer.addView(scrollRoot);
-			mainContainer.addView(buttonContainer);
-
-			dialog.setContentView(mainContainer);
-
-			ok.setOnClickListener(new View.OnClickListener() {
-				@Override
-				public void onClick(View v) {
-					try {
-						if (dialog.isShowing()) {
-							dialog.dismiss();
-						}
-					} catch (Exception e) {
-						XposedBridge.log("关闭对话框异常: " + e.getMessage());
-					}
-				}
-			});
-
-			// 显示对话框前再次检查
-			if (!activity.isFinishing()) {
-				dialog.show();
-			}
-		} catch (Exception e) {
-			XposedBridge.log("显示设置对话框异常: " + e.getMessage());
-		}
-	}
-
-	private void addCustomSwitch(LinearLayout parent, final Context ctx, String label, String hint, final String key,
-			boolean def) {
-		try {
-			LinearLayout container = new LinearLayout(ctx);
-			container.setOrientation(LinearLayout.VERTICAL);
-			container.setPadding(0, dp(ctx, 12), 0, dp(ctx, 12));
-
-			LinearLayout hor = new LinearLayout(ctx);
-			hor.setOrientation(LinearLayout.HORIZONTAL);
-			hor.setGravity(Gravity.CENTER_VERTICAL);
-
-			TextView tv = new TextView(ctx);
-			tv.setText(label);
-			tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-			tv.setTextColor(Color.BLACK);
-			LinearLayout.LayoutParams tvParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT,
-					1);
-			tv.setLayoutParams(tvParams);
-			hor.addView(tv);
-
-			// 使用自定义的切换按钮
-			final TextView switchView = new TextView(ctx);
-
-			// 使用 SharedPreferences 读取当前状态
-			boolean currentState = getBooleanSetting(ctx, key, def);
-			switchView.setTag(currentState);
-			updateSwitchAppearance(switchView, currentState);
-
-			LinearLayout.LayoutParams switchLp = new LinearLayout.LayoutParams(dp(ctx, 60), dp(ctx, 30));
-			switchLp.setMargins(dp(ctx, 8), 0, 0, 0);
-			hor.addView(switchView, switchLp);
-			container.addView(hor);
-
-			TextView hintTv = new TextView(ctx);
-			hintTv.setText(hint);
-			hintTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-			hintTv.setTextColor(Color.GRAY);
-			hintTv.setPadding(0, dp(ctx, 6), 0, 0);
-			container.addView(hintTv);
-
-			parent.addView(container);
-
-			// 设置点击监听
-			switchView.setOnClickListener(new View.OnClickListener() {
-				@Override
-				public void onClick(View v) {
-					try {
-						boolean currentState = (boolean) v.getTag();
-						boolean newState = !currentState;
-						v.setTag(newState);
-						updateSwitchAppearance(switchView, newState);
-						// 使用 SharedPreferences 保存状态
-						putBooleanSetting(ctx, key, newState);
-					} catch (Exception e) {
-						XposedBridge.log("切换开关状态异常: " + e.getMessage());
-					}
-				}
-			});
-		} catch (Exception e) {
-			XposedBridge.log("添加开关项异常: " + e.getMessage());
-		}
-	}
-
-	private void updateSwitchAppearance(TextView switchView, boolean isOn) {
-		try {
-			GradientDrawable bg = new GradientDrawable();
-			bg.setCornerRadius(dp(switchView.getContext(), 15));
-
-			if (isOn) {
-				bg.setColor(Color.parseColor("#FFC107"));
-				switchView.setText("开启");
-				switchView.setTextColor(Color.WHITE);
-			} else {
-				bg.setColor(Color.parseColor("#CCCCCC"));
-				switchView.setText("关闭");
-				switchView.setTextColor(Color.BLACK);
-			}
-
-			switchView.setBackground(bg);
-			switchView.setGravity(Gravity.CENTER);
-			switchView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-			switchView.setTypeface(null, Typeface.BOLD);
-
-			int padding = dp(switchView.getContext(), 4);
-			switchView.setPadding(padding, padding, padding, padding);
-		} catch (Exception e) {
-			XposedBridge.log("更新开关外观异常: " + e.getMessage());
-		}
-	}
 
 	private int dp(Context ctx, int dp) {
 		return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, ctx.getResources().getDisplayMetrics());
