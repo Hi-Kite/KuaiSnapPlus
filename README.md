@@ -91,6 +91,34 @@ export ANDROID_HOME=/path/to/android-sdk
 
 产物位于 `app/build/outputs/apk/release/`。
 
+### 签名
+
+发布包用 `keystore/kuaisnapplus-release.jks` 签名，**密钥库不入库**，密码也不写进构建脚本。请在 `local.properties`（已被 `.gitignore` 忽略）中配置：
+
+```properties
+kuaisnap.storeFile=keystore/kuaisnapplus-release.jks
+kuaisnap.storePassword=<密钥库口令>
+kuaisnap.keyAlias=kuaisnapplus
+kuaisnap.keyPassword=<密钥口令>
+```
+
+也可以改用环境变量 `KUAISNAP_STOREFILE` / `KUAISNAP_STORE_PASSWORD` / `KUAISNAP_KEY_ALIAS` / `KUAISNAP_KEY_PASSWORD`（适合 CI）。缺凭据时只会在打包任务上报错，`./gradlew tasks`、IDE 同步等不受影响。
+
+证书 SHA-256 指纹：
+
+```
+8F:F3:FB:62:DA:E6:46:61:19:D2:AC:FA:56:DC:1D:16:9A:63:B4:E2:58:8F:4B:D4:F7:FE:78:07:2A:42:C4:21
+```
+
+> **这把密钥库是应用的唯一身份。** 泄露则他人可签出系统认可的「官方更新」；丢失则永远无法覆盖安装更新，用户只能卸载重装。请离线备份，并且不要提交到任何仓库。
+
+校验已发布的 APK：
+
+```bash
+apksigner verify --print-certs KuaiSnapPlus_1.3.0.apk
+```
+
+
 > 注意：AGP 9 起内置 Kotlin 支持，**不要**再应用 `org.jetbrains.kotlin.android` 插件。
 
 
